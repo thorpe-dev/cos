@@ -5,7 +5,7 @@
   bad idea?
   @item Explain how thread scheduling in Pintos currently works in less than
   250 words. Include the chain of execution of function calls.
-  @item Explain the property of reproducbility and how the lack of
+  @item Explain the property of reproducibility and how the lack of
   reproducibility will affect debugging.
   @item How would you print an unsigned 64 bit @code{int}? (Consider that you
   are working with C99)
