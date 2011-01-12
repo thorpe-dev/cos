@@ -14,7 +14,7 @@
   @item What are the limitations on the size of the thread struct? How does
   Pintos identify stack overflow?
   @item If test @file{src/tests/threads/alarm-multiple} fails, where would
-  you find it's output and result logs? You might want to run this test and
+  you find its output and result logs? You might want to run this test and
   find out.
     @item Given a struct defined as follows:
 @verbatim

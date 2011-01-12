@@ -463,8 +463,7 @@ If your delays seem too short or too long, reread the explanation of the
 @option{-r} option to @command{pintos} (@pxref{Debugging versus
 Testing}).
 
-The alarm clock implementation is not needed for later tasks,
-although it could be useful for task 4.
+The alarm clock implementation is not needed for later tasks.
 
 @node Priority Scheduling
 @subsection Priority Scheduling

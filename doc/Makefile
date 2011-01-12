@@ -35,7 +35,7 @@ clean:
 	rm -rf WWW
 	rm -f sample.tmpl.texi
 
-dist: pintos.html pintos.pdf
+dist: pintos-ic.html pintos-ic.pdf
 	rm -rf WWW
 	mkdir WWW WWW/specs
 	cp *.html *.pdf *.css *.tmpl WWW

@@ -10,6 +10,7 @@
 @macro bibref{cite}
 [\cite\]
 @end macro
+@afourpaper
 @end iftex
 @ifinfo
 @ifnotplaintext

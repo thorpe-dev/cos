@@ -94,7 +94,7 @@ task 3.
 
 @item filesys/
 Source code for a basic file system.  You will use this file system
-starting with task 2, but you will not modify it until task 4.
+starting with task 2.
 
 @item devices/
 Source code for I/O device interfacing: keyboard, timer, disk, etc.
@@ -221,7 +221,7 @@ simulations. This has ramifications with regards to both testing and debugging.
 
 Whilst reproducibility is extremely useful for debugging, running Pintos in
 QEMU is not necessarily deterministic. You should keep this in mind when
-testing for bgs in your code. In each run, timer interrupts will come at
+testing for bugs in your code. In each run, timer interrupts will come at
 irregularly spaced intervals, meaning that bugs may appear and disappear with
 repeated tests. Therefore it's very important that you run through the tests at
 least few times. No number of runs can guarantee that your synchronisation is
@@ -245,7 +245,7 @@ When you are finished with a task, you can submit it via CATE as a
 We will grade your assignments based on test results and design quality,
 each of which comprises 50% of your grade.
 
-Task 0 (completing the introductory worksheet handed out during lectures)
+Task 0 (completing the introductory worksheet handed out through CATE)
 and Task 1 will contribute towards your Operating Systems coursework mark,
 while Tasks 2 and 3 will contribute towards your Laboratory work mark.
 
@@ -393,18 +393,16 @@ description of the design with the code submitted.  Important
 discrepancies between the description and the actual code will be
 penalized, as will be any bugs we find by spot checks.
 
-The most important aspects of source code design are those that specifically
-relate to the operating system issues at stake in the task.  For
-example, the organization of an inode is an important part of file
-system design, so in the file system task a poorly designed inode
-would lose points.  Other issues are much less important.  For
-example, multiple Pintos design problems call for a ``priority
-queue,'' that is, a dynamic collection from which the minimum (or
-maximum) item can quickly be extracted.  Fast priority queues can be
-implemented many ways, but we do not expect you to build a fancy data
-structure even if it might improve performance.  Instead, you are
-welcome to use a linked list (and Pintos even provides one with
-convenient functions for sorting and finding minimums and maximums).
+The most important aspects of source code design are those that
+specifically relate to the operating system issues at stake in the
+task. Other issues are much less important.  For example, multiple
+Pintos design problems call for a ``priority queue,'' that is, a dynamic
+collection from which the minimum (or maximum) item can quickly be
+extracted.  Fast priority queues can be implemented many ways, but we do
+not expect you to build a fancy data structure even if it might improve
+performance.  Instead, you are welcome to use a linked list (and Pintos
+even provides one with convenient functions for sorting and finding
+minimums and maximums).
 
 Pintos is written in a consistent style.  Make your additions and
 modifications in existing Pintos source files blend in, not stick out.
