@@ -22,7 +22,7 @@ struct foo
 { 
   int bar;
   struct list_elem e;
-}
+};
 @end verbatim
    And a list declaration:
 @verbatim
