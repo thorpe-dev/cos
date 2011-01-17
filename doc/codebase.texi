@@ -6,8 +6,9 @@ Pintos is structured before you actually begin to add features to it. The
 exercise requires you to answer a worksheet (handed out 
 through CATE) that contains a few questions to check your understanding.
 
-The worksheet will not contribute anything to your grade for this exercise
-but you will have to pass to continue with the project.
+Tasks 0 and 1 will count as the coursework for the operating systems
+course. Task 0 will carry 25% of the coursework marks, with the rest
+allocated to Task 1.
 
 @b{Task 0 will be assessed individually, unlike the rest of the tasks in this
    project.}
