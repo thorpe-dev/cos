@@ -8,7 +8,7 @@ check_expected ([<<'EOF']);
 (create-exists) create warble.dat
 (create-exists) try to re-create quux.dat
 (create-exists) create baffle.dat
-(create-exists) try to re-create quux.dat
+(create-exists) try to re-create warble.dat
 (create-exists) end
 create-exists: exit(0)
 EOF
