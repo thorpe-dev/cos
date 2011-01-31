@@ -8,6 +8,7 @@
 
 @menu
 * Setting Up Git::              
+* Using a bare repository::
 * Using Git::                   
 @end menu
 
@@ -31,6 +32,39 @@ To work on the source code, you must create a clone of the initial
 repository. This can be done by running
 @samp{git clone @value{localpintosgitpath} pintos} to copy
 the initial repository into a directory named @samp{pintos}.
+
+@node Using a bare repository
+@subsection Using a bare repository
+
+If you wish to work with repositories for each group member, you can use
+a @strong{bare repository} to make synchronising your development easier.
+
+To create a bare repository, go to your shared directory and run the
+following:
+
+@verbatim
+  chmod g+s .
+  git clone --bare /vol/lab/secondyear/osexercise/pintos.git pintos-ic
+  cd pintos-ic
+  git init --bare --shared=group
+@end verbatim
+
+This will make sure group permissions are inherited by the repository when
+it is cloned, and will also ensure that the repository behaves correctly with
+multiple contributors.
+
+Once this is done, you can add your group repository as a remote from your
+personal repository with
+@samp{git remote add group /vol/project/2010/261/g10261@var{$GROUP}/pintos-ic}.
+You can then share commits using @samp{git fetch}, @samp{git pull}, and
+@samp{git push}. For instance, you can share commits from your personal repo
+with @samp{git push group master}, and get commits from the group repo with
+@samp{get fetch group}. These commits can be merged as usual. If you want to
+merge the master branch directly, you can use @samp{git pull group master}.
+
+As bare repos are not `special' in any way, they can be deleted and recreated
+if required. Just be sure that you have any commits you want to keep in your
+personal repo before deleting.
 
 @node Using Git
 @subsection Using Git
