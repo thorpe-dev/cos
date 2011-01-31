@@ -1,7 +1,7 @@
 TEXIS = pintos-ic.texi intro.texi codebase.texi threads.texi userprog.texi vm.texi	\
 license.texi reference.texi 44bsd.texi standards.texi	\
 doc.texi sample.tmpl.texi devel.texi debug.texi installation.texi	\
-bibliography.texi localsettings.texi task0_questions.texi
+bibliography.texi localsettings.texi task0_questions.texi localgitinstructions.texi
 
 all: pintos-ic.html pintos-ic.info pintos-ic.dvi pintos-ic.ps pintos-ic.pdf task0_sheet.pdf
 
