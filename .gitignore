@@ -1,3 +1,4 @@
 .texi~
 *.o
 *.a
+/src/userprog/build/*
