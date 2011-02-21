@@ -1,3 +1,6 @@
 .texi~
 *.o
 *.a
+*~
+*.orig
+/src/threads/build/*
