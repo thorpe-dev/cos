@@ -1,4 +1,10 @@
 .texi~
 *.o
 *.a
+<<<<<<< HEAD
 /src/userprog/build/*
+=======
+*~
+*.orig
+/src/threads/build/*
+>>>>>>> 1d0dab3984f4383e3e2065d6a20da7f53b8616b6
