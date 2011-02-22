@@ -468,16 +468,14 @@ setup_stack_r (void **esp, const char *command)
 {
   struct list arg_list;
   char fn_copy[128];
-  char *save_ptr = NULL;
+  char* save_ptr = NULL;
   struct arg_elem* arg;
   struct list_elem* e;
-  
-  char *token;
-  
-  int counter = 0;
-  
+  char* token;
   char* ptr = *esp;
-  
+  int pointer_size = sizeof(int*);
+  int counter = 0;
+
   list_init(&arg_list);
   
   strlcpy (fn_copy, command, 128);
@@ -486,12 +484,13 @@ setup_stack_r (void **esp, const char *command)
   for (token = strtok_r (fn_copy, " ", &save_ptr); token != NULL;
         token = strtok_r (NULL, " ", &save_ptr)) 
         {
-        
           arg = malloc(sizeof(struct arg_elem));
-                    
+          ASSERT(arg != NULL);
+          *arg->argument = '\0';
+
           strlcpy(arg->argument,token,128);
           arg->argument_length = strlen(token);
-          
+
           list_push_back(&arg_list, &arg->elem);
         }
   
@@ -514,9 +513,9 @@ setup_stack_r (void **esp, const char *command)
   /* Word align - TODO WILL WORK ON THIS LATER*/
   
   /* CHECK THIS - add argv[max] */
-  char* empty_pointer = NULL;
-  ptr -= sizeof(empty_pointer);
-  *ptr = empty_pointer;
+  ptr -= pointer_size;
+
+  *ptr = 0;
   
   
   
@@ -526,15 +525,15 @@ setup_stack_r (void **esp, const char *command)
     {
       struct arg_elem *a = list_entry (e, struct arg_elem, elem);
       
-      *ptr -= sizeof(ptr);
+      *ptr -= pointer_size;
       
-      strlcpy(ptr, a->stack_pointer, sizeof(ptr));      
+      strlcpy(ptr, a->stack_pointer, pointer_size);      
       
     }
     
   /* Pushes pointer to first argument */
-  strlcpy(ptr - sizeof(ptr), ptr, sizeof(ptr));
-  ptr -= sizeof(ptr);
+  strlcpy(ptr - pointer_size, ptr, pointer_size);
+  ptr -= pointer_size;
   
   /* Pushes number of arguments */
   *ptr = counter;
