@@ -13,8 +13,8 @@ syscall_init (void)
 }
 
 static void
-syscall_handler (struct intr_frame *f UNUSED) 
+syscall_handler (struct intr_frame *f) 
 {
-  printf ("system call!\n");
-  thread_exit ();
+  printf("FOO\n");
+  hex_dump(0, f, sizeof(*f), true);
 }
