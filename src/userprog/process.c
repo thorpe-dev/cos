@@ -488,8 +488,6 @@ setup_stack_r (void **esp, const char *command)
         {
         
           arg = malloc(sizeof(struct arg_elem));
-          ASSERT(arg != NULL);
-          memset(arg, 0, sizeof(struct arg_elem));
                     
           strlcpy(arg->argument,token,128);
           arg->argument_length = strlen(token);
@@ -502,12 +500,12 @@ setup_stack_r (void **esp, const char *command)
        e = list_next (e))
     { 
       struct arg_elem *a = list_entry (e, struct arg_elem, elem);
-      
+      a->stack_pointer = ptr;
       *ptr -= a->argument_length;
       
       strlcpy(ptr,a->argument,128);
       
-      a->stack_pointer = ptr;      
+            
       
       counter++;
     }
@@ -548,7 +546,7 @@ setup_stack_r (void **esp, const char *command)
   
   /* Sets esp to correct address */
   
-  hex_dump (0, ptr, 100 , true);
+  hex_dump ((int)ptr, ptr, 200, true);
   
   *esp = ptr;
 }
