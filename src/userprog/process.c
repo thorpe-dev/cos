@@ -544,6 +544,9 @@ setup_stack_r (void **esp, const char *command)
   ptr -= sizeof(int);
   
   /* Sets esp to correct address */
+  
+  hex_dump (0, ptr, 100 , true);
+  
   *esp = ptr;
 }
 
