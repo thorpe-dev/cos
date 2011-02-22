@@ -203,7 +203,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
                           bool writable);
                           
-static void setup_stack_r(void **esp, const char *args);
+static char* setup_stack_r(char* page, const char *args);
 
 /* Loads an ELF executable from FILE_NAME into the current thread.
    Stores the executable's entry point into *EIP
@@ -450,12 +450,9 @@ setup_stack (void **esp, const char *args)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success){
-        *esp = PHYS_BASE;
-       
          /*Push args onto stack */
-        setup_stack_r (esp, args);
-        /*CHECK THIS*/
-        
+        printf("kpage = %X\n", kpage);
+        esp = setup_stack_r (kpage, args);
       }
       else
         palloc_free_page (kpage);
@@ -463,8 +460,8 @@ setup_stack (void **esp, const char *args)
   return success;
 }
 
-static void
-setup_stack_r (void **esp, const char *command)
+static char*
+setup_stack_r (char* page, const char *command)
 {
   struct list arg_list;
   char fn_copy[128];
@@ -472,7 +469,7 @@ setup_stack_r (void **esp, const char *command)
   struct arg_elem* arg;
   struct list_elem* e;
   char* token;
-  char* ptr = *esp;
+  char* ptr = page + LOADER_PHYS_BASE;
   int pointer_size = sizeof(int*);
   int counter = 0;
 
@@ -514,8 +511,13 @@ setup_stack_r (void **esp, const char *command)
   
   /* CHECK THIS - add argv[max] */
   ptr -= pointer_size;
-
-  *ptr = 0;
+  *ptr = 0xABCD;
+  ptr -= pointer_size;
+  *ptr = 0xABCD;
+  ptr -= pointer_size;
+  *ptr = 0xABCD;
+  ptr -= pointer_size;
+  *ptr = 0xABCD;
   
   
   
@@ -543,11 +545,9 @@ setup_stack_r (void **esp, const char *command)
   *ptr = 0;
   ptr -= sizeof(int);
   
-  /* Sets esp to correct address */
+  hex_dump ((int)ptr, ptr, LOADER_PHYS_BASE-(int)ptr, true);
   
-  hex_dump (0, ptr, 100 , true);
-  
-  *esp = ptr;
+  return page - ptr;
 }
 
 /* Adds a mapping from user virtual address UPAGE to kernel

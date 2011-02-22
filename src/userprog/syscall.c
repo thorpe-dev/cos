@@ -36,8 +36,8 @@ syscall_handler (struct intr_frame *f)
   switch(call_number)
   {
     case SYS_HALT: syscall_halt(); break;
-    case SYS_EXIT: syscall_exit(f->esp); break;
-    case SYS_EXEC: syscall_exec(f->esp); break;
+    case SYS_EXIT: syscall_exit(f); break;
+    case SYS_EXEC: syscall_exec(f); break;
     /*case SYS_WAIT: syscall_wait(); break;
     case SYS_CREATE: syscall_create(); break;
     case SYS_REMOVE: syscall_remove(); break;
