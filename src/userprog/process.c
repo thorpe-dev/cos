@@ -496,12 +496,12 @@ setup_stack_r (char* page, const char *command)
        e = list_next (e))
     { 
       struct arg_elem *a = list_entry (e, struct arg_elem, elem);
-      
+      a->stack_pointer = ptr;
       *ptr -= a->argument_length;
       
       strlcpy(ptr,a->argument,128);
       
-      a->stack_pointer = ptr;      
+            
       
       counter++;
     }
