@@ -5,13 +5,12 @@
 #include "threads/thread.h"
 #include "devices/shutdown.h"
 #include "process.h"
-#include "lib/user/syscall.h"
 
 static void syscall_handler (struct intr_frame *);
 
 static void syscall_halt(void);
 static void syscall_exit(struct intr_frame *f);
-static void syscall_exec(struct intr_frame *f);
+static pid_t syscall_exec(struct intr_frame *f);
 static void syscall_wait(struct intr_frame *f);
 static void syscall_create(struct intr_frame *f);
 static void syscall_remove(struct intr_frame *f);
