@@ -468,33 +468,29 @@ setup_stack_r (void **esp, const char *command)
 {
   struct list arg_list;
   char fn_copy[128];
-  char *save_ptr = NULL;
+  char* save_ptr = NULL;
   struct arg_elem* arg;
   struct list_elem* e;
-  
-  char *token;
-  
+  char* token;
+  char* ptr = *esp;
+  int pointer_size = sizeof(int*);
   int counter = 0;
-  
-  char* esp_copy = *esp;
-  
+
   list_init(&arg_list);
   
   strlcpy (fn_copy, command, 128);
   
   /* Added argument values and lengths to a list */
   for (token = strtok_r (fn_copy, " ", &save_ptr); token != NULL;
-        token = strtok_r (fn_copy, " ", &save_ptr)) 
+        token = strtok_r (NULL, " ", &save_ptr)) 
         {
-          
-          printf("arg_size: %d\n", sizeof(arg));
-          arg = malloc(sizeof(arg));
+          arg = malloc(sizeof(struct arg_elem));
           ASSERT(arg != NULL);
-          memset(arg, 0, sizeof(arg));
-                    
+          *arg->argument = '\0';
+
           strlcpy(arg->argument,token,128);
           arg->argument_length = strlen(token);
-          
+
           list_push_back(&arg_list, &arg->elem);
         }
   
@@ -504,11 +500,11 @@ setup_stack_r (void **esp, const char *command)
     { 
       struct arg_elem *a = list_entry (e, struct arg_elem, elem);
       
-      *esp_copy -= a->argument_length;
+      *ptr -= a->argument_length;
       
-      strlcpy(esp_copy,a->argument,128);
+      strlcpy(ptr,a->argument,128);
       
-      a->stack_pointer = esp_copy;      
+      a->stack_pointer = ptr;      
       
       counter++;
     }
@@ -517,9 +513,9 @@ setup_stack_r (void **esp, const char *command)
   /* Word align - TODO WILL WORK ON THIS LATER*/
   
   /* CHECK THIS - add argv[max] */
-  char* empty_pointer = NULL;
-  esp_copy -= sizeof(empty_pointer);
-  *esp_copy = empty_pointer;
+  ptr -= pointer_size;
+
+  *ptr = 0;
   
   
   
@@ -529,26 +525,26 @@ setup_stack_r (void **esp, const char *command)
     {
       struct arg_elem *a = list_entry (e, struct arg_elem, elem);
       
-      *esp_copy -= sizeof(esp_copy);
+      *ptr -= pointer_size;
       
-      strlcpy(esp_copy, a->stack_pointer, sizeof(esp_copy));      
+      strlcpy(ptr, a->stack_pointer, pointer_size);      
       
     }
     
   /* Pushes pointer to first argument */
-  strlcpy(esp_copy - sizeof(esp_copy), esp_copy, sizeof(esp_copy));
-  esp_copy -= sizeof(esp_copy);
+  strlcpy(ptr - pointer_size, ptr, pointer_size);
+  ptr -= pointer_size;
   
   /* Pushes number of arguments */
-  *esp_copy = counter;
-  esp_copy -= sizeof(int);
+  *ptr = counter;
+  ptr -= sizeof(int);
   
   /* Pushes fake return address */
-  *esp_copy = 0;
-  esp_copy -= sizeof(int);
+  *ptr = 0;
+  ptr -= sizeof(int);
   
   /* Sets esp to correct address */
-  *esp = esp_copy;
+  *esp = ptr;
 }
 
 /* Adds a mapping from user virtual address UPAGE to kernel
