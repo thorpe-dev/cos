@@ -17,6 +17,7 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -196,18 +197,20 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp);
+static bool setup_stack (void **esp, const char *args);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
                           bool writable);
+                          
+static void setup_stack_r(void **esp, const char *args);
 
 /* Loads an ELF executable from FILE_NAME into the current thread.
    Stores the executable's entry point into *EIP
    and its initial stack pointer into *ESP.
    Returns true if successful, false otherwise. */
 bool
-load (const char *file_name_, void (**eip) (void), void **esp) 
+load (const char* command, void (**eip) (void), void **esp) 
 {
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
@@ -215,16 +218,15 @@ load (const char *file_name_, void (**eip) (void), void **esp)
   off_t file_ofs;
   bool success = false;
   int i;
-  char *file_name = file_name_;
-    
-  char *args;
+  
+  char file_name[128];
   char *save_ptr = NULL;
   
-  //sets file_name to the first parameter of cmdline input
-  file_name = strtok_r(file_name, " ", &save_ptr); 
+  strlcpy(file_name, command, 128);
   
-  //sets args to the rest of the cmdline input
-  args = save_ptr;
+  //sets file_name to the first parameter of cmdline input
+  strlcpy(file_name, strtok_r(file_name, " ", &save_ptr), 128); 
+  
 
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
@@ -313,7 +315,7 @@ load (const char *file_name_, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  if (!setup_stack (esp, args))
+  if (!setup_stack (esp, command))
     goto done;
 
   /* Start address. */
@@ -438,7 +440,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
-setup_stack (void **esp, char *args) 
+setup_stack (void **esp, const char *args) 
 {
   uint8_t *kpage;
   bool success = false;
@@ -447,12 +449,106 @@ setup_stack (void **esp, char *args)
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-      if (success)
+      if (success){
         *esp = PHYS_BASE;
+       
+         /*Push args onto stack */
+        setup_stack_r (esp, args);
+        /*CHECK THIS*/
+        
+      }
       else
         palloc_free_page (kpage);
     }
   return success;
+}
+
+static void
+setup_stack_r (void **esp, const char *command)
+{
+  struct list arg_list;
+  char fn_copy[128];
+  char *save_ptr = NULL;
+  struct arg_elem* arg;
+  struct list_elem* e;
+  
+  char *token;
+  
+  int counter = 0;
+  
+  char* esp_copy = *esp;
+  
+  list_init(&arg_list);
+  
+  strlcpy (fn_copy, command, 128);
+  
+  /* Added argument values and lengths to a list */
+  for (token = strtok_r (fn_copy, " ", &save_ptr); token != NULL;
+        token = strtok_r (fn_copy, " ", &save_ptr)) 
+        {
+          
+          printf("arg_size: %d\n", sizeof(arg));
+          arg = malloc(sizeof(arg));
+          ASSERT(arg != NULL);
+          memset(arg, 0, sizeof(arg));
+                    
+          strlcpy(arg->argument,token,128);
+          arg->argument_length = strlen(token);
+          
+          list_push_back(&arg_list, &arg->elem);
+        }
+  
+  /* Pushes arguments onto stack and copy their address to their list_elem, counts no. of args*/
+  for (e = list_begin (&arg_list); e != list_end (&arg_list);
+       e = list_next (e))
+    { 
+      struct arg_elem *a = list_entry (e, struct arg_elem, elem);
+      
+      *esp_copy -= a->argument_length;
+      
+      strlcpy(esp_copy,a->argument,128);
+      
+      a->stack_pointer = esp_copy;      
+      
+      counter++;
+    }
+    
+    
+  /* Word align - TODO WILL WORK ON THIS LATER*/
+  
+  /* CHECK THIS - add argv[max] */
+  char* empty_pointer = NULL;
+  esp_copy -= sizeof(empty_pointer);
+  *esp_copy = empty_pointer;
+  
+  
+  
+  /* Pushes argument address onto stack */
+  for (e = list_begin (&arg_list); e != list_end (&arg_list);
+       e = list_next (e))
+    {
+      struct arg_elem *a = list_entry (e, struct arg_elem, elem);
+      
+      *esp_copy -= sizeof(esp_copy);
+      
+      strlcpy(esp_copy, a->stack_pointer, sizeof(esp_copy));      
+      
+    }
+    
+  /* Pushes pointer to first argument */
+  strlcpy(esp_copy - sizeof(esp_copy), esp_copy, sizeof(esp_copy));
+  esp_copy -= sizeof(esp_copy);
+  
+  /* Pushes number of arguments */
+  *esp_copy = counter;
+  esp_copy -= sizeof(int);
+  
+  /* Pushes fake return address */
+  *esp_copy = 0;
+  esp_copy -= sizeof(int);
+  
+  /* Sets esp to correct address */
+  *esp = esp_copy;
 }
 
 /* Adds a mapping from user virtual address UPAGE to kernel
