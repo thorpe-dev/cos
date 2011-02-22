@@ -476,7 +476,7 @@ setup_stack_r (void **esp, const char *command)
   
   int counter = 0;
   
-  char* esp_copy = *esp;
+  char* ptr = *esp;
   
   list_init(&arg_list);
   
@@ -484,13 +484,12 @@ setup_stack_r (void **esp, const char *command)
   
   /* Added argument values and lengths to a list */
   for (token = strtok_r (fn_copy, " ", &save_ptr); token != NULL;
-        token = strtok_r (fn_copy, " ", &save_ptr)) 
+        token = strtok_r (NULL, " ", &save_ptr)) 
         {
-          
-          printf("arg_size: %d\n", sizeof(arg));
-          arg = malloc(sizeof(arg));
+        
+          arg = malloc(sizeof(struct arg_elem));
           ASSERT(arg != NULL);
-          memset(arg, 0, sizeof(arg));
+          memset(arg, 0, sizeof(struct arg_elem));
                     
           strlcpy(arg->argument,token,128);
           arg->argument_length = strlen(token);
@@ -504,11 +503,11 @@ setup_stack_r (void **esp, const char *command)
     { 
       struct arg_elem *a = list_entry (e, struct arg_elem, elem);
       
-      *esp_copy -= a->argument_length;
+      *ptr -= a->argument_length;
       
-      strlcpy(esp_copy,a->argument,128);
+      strlcpy(ptr,a->argument,128);
       
-      a->stack_pointer = esp_copy;      
+      a->stack_pointer = ptr;      
       
       counter++;
     }
@@ -518,8 +517,8 @@ setup_stack_r (void **esp, const char *command)
   
   /* CHECK THIS - add argv[max] */
   char* empty_pointer = NULL;
-  esp_copy -= sizeof(empty_pointer);
-  *esp_copy = empty_pointer;
+  ptr -= sizeof(empty_pointer);
+  *ptr = empty_pointer;
   
   
   
@@ -529,26 +528,29 @@ setup_stack_r (void **esp, const char *command)
     {
       struct arg_elem *a = list_entry (e, struct arg_elem, elem);
       
-      *esp_copy -= sizeof(esp_copy);
+      *ptr -= sizeof(ptr);
       
-      strlcpy(esp_copy, a->stack_pointer, sizeof(esp_copy));      
+      strlcpy(ptr, a->stack_pointer, sizeof(ptr));      
       
     }
     
   /* Pushes pointer to first argument */
-  strlcpy(esp_copy - sizeof(esp_copy), esp_copy, sizeof(esp_copy));
-  esp_copy -= sizeof(esp_copy);
+  strlcpy(ptr - sizeof(ptr), ptr, sizeof(ptr));
+  ptr -= sizeof(ptr);
   
   /* Pushes number of arguments */
-  *esp_copy = counter;
-  esp_copy -= sizeof(int);
+  *ptr = counter;
+  ptr -= sizeof(int);
   
   /* Pushes fake return address */
-  *esp_copy = 0;
-  esp_copy -= sizeof(int);
+  *ptr = 0;
+  ptr -= sizeof(int);
   
   /* Sets esp to correct address */
-  *esp = esp_copy;
+  
+  hex_dump (0, ptr, 100 , true);
+  
+  *esp = ptr;
 }
 
 /* Adds a mapping from user virtual address UPAGE to kernel

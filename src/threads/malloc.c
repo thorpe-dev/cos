@@ -89,6 +89,7 @@ malloc_init (void)
 void *
 malloc (size_t size) 
 {
+  
   struct desc *d;
   struct block *b;
   struct arena *a;
@@ -150,6 +151,7 @@ malloc (size_t size)
   a = block_to_arena (b);
   a->free_cnt--;
   lock_release (&d->lock);
+  
   return b;
 }
 
