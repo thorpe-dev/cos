@@ -263,3 +263,27 @@ invalidate_pagedir (uint32_t *pd)
       pagedir_activate (pd);
     } 
 }
+
+
+/*Return true if pointer is 'safe'*/
+bool
+is_safe_ptr(const void* vaddr)
+{
+  uint32_t *ptr;
+  
+  /*Check pointer not NULL*/
+  if(vaddr == NULL)
+    return false;
+
+  /*Check pointer not kernel address*/
+  if (is_user_vaddr (vaddr))
+    return false;
+
+  /*Check pointer points to mapped space -UNSURE ABOUT THIS*/
+  ptr = lookup_page (active_pd(), vaddr, false);
+  if(ptr == NULL || (*ptr & PTE_P) == 0)
+    return false;
+ 
+  /*Otherwise the pointer is valid*/
+  return true;
+}
