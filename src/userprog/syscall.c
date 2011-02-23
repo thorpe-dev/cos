@@ -6,6 +6,7 @@
 #include "devices/shutdown.h"
 #include "process.h"
 #include "filesys/filesys.h"
+#include "userprog/pagedir.h"
 
 #define MAXCHAR 512
 
@@ -26,7 +27,6 @@ static unsigned int syscall_tell(int fd);
 static void syscall_close (int fd);
 
 static void check_safe_ptr (const void *ptr, int no_args);
-static bool is_safe_ptr (const void* ptr);
 
 void
 syscall_init (void) 
@@ -181,7 +181,7 @@ syscall_write(int fd, const void *buffer, unsigned int size)
     for (i = size; i > 0; i -= MAXCHAR) {
       if (i < MAXCHAR)
         putbuf(buffer, i);
-        
+
       else {
         putbuf(buffer, MAXCHAR);
         buffer += MAXCHAR;
