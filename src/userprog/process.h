@@ -8,6 +8,8 @@ int process_wait (tid_t);
 void process_exit (void);
 void process_activate (void);
 
+void kill_current(void);
+
 /* Process identifier - same as in lib/user/syscall.h */
 typedef int pid_t;
 #define PID_ERROR ((pid_t) -1)
