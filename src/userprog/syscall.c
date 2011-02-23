@@ -42,7 +42,7 @@ syscall_handler (struct intr_frame *f)
     case SYS_WAIT: syscall_wait(f); break;
     case SYS_CREATE: syscall_create(f); break;
     case SYS_REMOVE: syscall_remove(f); break;
-/*    case SYS_OPEN: syscall_open(f); break;
+/*  case SYS_OPEN: syscall_open(f); break;
     case SYS_FILESIZE syscall_filesize(f); break;
     case SYS_READ: syscall_read(f); break;
     case SYS_WRITE: syscall_write(f); break;
@@ -83,7 +83,7 @@ syscall_exec(struct intr_frame *f)
   int* esp = (f->esp);
   pid_t pid = -1;
   
-  command = *(((char*)esp)+1);
+  command = (char*)(((int)esp) + 1);
   
    
   
@@ -107,7 +107,7 @@ syscall_create(struct intr_frame *f)
 {
   int* esp = (f->esp);
   
-  char* file_name = *(((char*)esp) + 1);
+  char* file_name = (char*)(((int)esp) + 1);
   
   int file_size = *(esp + 2);
   bool success = false;
@@ -123,7 +123,7 @@ syscall_remove(struct intr_frame *f)
 {
   int* esp = (f->esp);
   
-  char* file_name = *(((char*)esp) + 1);
+  char* file_name = (char*)(((int)esp) + 1);
   
   bool success = false;
   
@@ -138,7 +138,7 @@ syscall_open(struct intr_frame *f)
 {
   int* esp = (f->esp);
   
-  char* file_name = *(((char*)esp) + 1);
+  char* file_name = (char*)(((int)esp) + 1);
   struct file* file_ptr;
   file_ptr = filesys_open(file_name);
   
