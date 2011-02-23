@@ -51,54 +51,67 @@ syscall_handler (struct intr_frame *f)
     case SYS_HALT: 
       syscall_halt(); 
       break;
+      
     case SYS_EXIT:
       check_safe_ptr (esp, 1);
       syscall_exit(*((int*)argument_1)); 
       break;
+      
     case SYS_EXEC:
       check_safe_ptr (esp, 1);
       syscall_exec((const char*)argument_1); 
       break;
+      
     case SYS_WAIT:
       check_safe_ptr (esp, 1);
       syscall_wait(*((pid_t*)argument_1)); 
       break;
+      
     case SYS_CREATE:
       check_safe_ptr (esp, 2);
       syscall_create((const char*)argument_1, *((unsigned int*)argument_2)); 
       break;
+      
     case SYS_REMOVE: 
       check_safe_ptr (esp, 1);
       syscall_remove((const char*)argument_1); 
       break;
+      
     case SYS_OPEN:
       check_safe_ptr (esp, 1);
       syscall_open((const char*)argument_1); 
       break;
+      
     case SYS_FILESIZE:
       check_safe_ptr (esp, 1);
       syscall_filesize(*((int*)argument_1)); 
       break;
+      
     case SYS_READ:
       check_safe_ptr (esp, 3);
       syscall_read(*((int*)argument_1), argument_2, *((unsigned int*)argument_3)); 
       break;
+      
     case SYS_WRITE: 
       check_safe_ptr (esp, 3);
       syscall_write(*((int*)argument_1), (const void*)argument_2, *((unsigned int*)argument_3)); 
       break;
+      
     case SYS_SEEK: 
       check_safe_ptr (esp, 2);
       syscall_seek(*((int*)argument_1), *((unsigned int*)argument_2)); 
       break;
+      
     case SYS_TELL:
       check_safe_ptr (esp, 1);
       syscall_tell(*((int*)argument_1)); 
       break;
+      
     case SYS_CLOSE: 
       check_safe_ptr (esp, 1);
       syscall_close(*((int*)argument_1)); 
       break;
+      
     default: 
       printf("Invalid syscall: %d\n", call_number);
   }
@@ -126,14 +139,10 @@ syscall_exit(int status)
 static pid_t 
 syscall_exec(const char *command)
 {
-  char* command;
-  int* esp = (f->esp);
   struct semaphore load_success;
   struct thread* new_t;
   pid_t pid = -1;
-  
-  command = *(((char*)esp)+1);
-  
+    
   sema_init(&load_success, 0);
   
   pid = process_execute(command);
