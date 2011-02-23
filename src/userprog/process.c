@@ -202,8 +202,7 @@ static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
                           bool writable);
-                          
-static char* setup_stack_r(char* page, const char *args);
+
 
 /* Loads an ELF executable from FILE_NAME into the current thread.
    Stores the executable's entry point into *EIP
@@ -440,114 +439,95 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
-setup_stack (void **esp, const char *args) 
+setup_stack (void **esp, const char *command) 
 {
   uint8_t *kpage;
   bool success = false;
+  
+  struct list arguments;
+  struct list_elem* e = NULL;
+  struct arg_elem* this_arg = NULL;
+  char command_copy[128]; // Copy of the command - strtok modifies it
+  char* save_ptr, * token = NULL;
+  uint8_t* ptr, * base = NULL;
+  int pointer_size = sizeof(void*);
+  int num_args = 0;
+
+  list_init(&arguments);
+  strlcpy (command_copy, command, 128);
 
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success){
-         /*Push args onto stack */
-        printf("kpage = %X\n", kpage);
-        esp = setup_stack_r (kpage, args);
+        ptr = base = (uint8_t*)kpage + PGSIZE;
+
+        /* Add argument values and lengths to a list */
+        for (token = strtok_r (command_copy, " ", &save_ptr); token != NULL;
+             token = strtok_r (NULL, " ", &save_ptr))
+        {
+          this_arg = malloc(sizeof(struct arg_elem));
+          ASSERT(this_arg != NULL);
+          *this_arg->argument = '\0';
+
+          strlcpy(this_arg->argument, token, 128);
+          this_arg->length = strlen(token)+1;
+          list_push_front(&arguments, &this_arg->elem);
+          num_args++;
+        }
+
+        /* Pushes arguments onto stack and copy their address to their list_elem, counts no. of args*/
+        for (e = list_begin(&arguments); e != list_end(&arguments);
+             e = list_next(e))
+        { 
+          this_arg = list_entry(e, struct arg_elem, elem);
+          ptr -= this_arg->length;
+          this_arg->location = PHYS_BASE-(base-ptr);
+          strlcpy((char*)ptr, this_arg->argument, this_arg->length);
+        }
+
+        // Word Align
+        ptr = (uint8_t*)((int)ptr & ~0x3);
+
+        printf("Push 0\n");
+        ptr -= pointer_size;
+        *ptr = 0;
+
+        /* Pushes argument address (string pointers) onto stack */
+        for (e = list_begin(&arguments); e != list_end(&arguments);
+             e = list_next (e))
+        {
+          this_arg = list_entry (e, struct arg_elem, elem);
+          ptr -= pointer_size;
+          *(uint32_t*)ptr = (uint32_t)this_arg->location;
+        }
+        
+        /* Pushes pointer to first string pointer */
+        ptr -= pointer_size;
+        *(uint32_t*)ptr = (uint32_t)(PHYS_BASE-(base-ptr) + pointer_size);
+        
+        /* Pushes number of arguments */
+        ptr -= sizeof(uint32_t);
+        *(uint32_t*)ptr = num_args;
+
+        /* Pushes fake return address */
+        ptr -= pointer_size;
+        *(uint32_t*)ptr = 0;
+
+        /* DEBUG
+        hex_dump ((int)PHYS_BASE - (base - ptr), ptr, ((int)kpage + PGSIZE) - (int)ptr, true);
+        printf("ptr = 0x%X\n", ptr);
+        printf("kpage = 0x%X\n", kpage);
+        printf("PGSIZE = 0x%X\n", PGSIZE);
+        */
+
+        *esp = PHYS_BASE - (base - ptr);
       }
       else
         palloc_free_page (kpage);
     }
   return success;
-}
-
-static char*
-setup_stack_r (char* page, const char *command)
-{
-  struct list arg_list;
-  char fn_copy[128];
-  char* save_ptr = NULL;
-  struct arg_elem* arg;
-  struct list_elem* e;
-  char* token;
-  char* ptr = page + LOADER_PHYS_BASE;
-  int pointer_size = sizeof(int*);
-  int counter = 0;
-
-  list_init(&arg_list);
-  
-  strlcpy (fn_copy, command, 128);
-  
-  /* Added argument values and lengths to a list */
-  for (token = strtok_r (fn_copy, " ", &save_ptr); token != NULL;
-        token = strtok_r (NULL, " ", &save_ptr)) 
-        {
-          arg = malloc(sizeof(struct arg_elem));
-          ASSERT(arg != NULL);
-          *arg->argument = '\0';
-
-          strlcpy(arg->argument,token,128);
-          arg->argument_length = strlen(token);
-
-          list_push_back(&arg_list, &arg->elem);
-        }
-  
-  /* Pushes arguments onto stack and copy their address to their list_elem, counts no. of args*/
-  for (e = list_begin (&arg_list); e != list_end (&arg_list);
-       e = list_next (e))
-    { 
-      struct arg_elem *a = list_entry (e, struct arg_elem, elem);
-      a->stack_pointer = ptr;
-      *ptr -= a->argument_length;
-      
-      strlcpy(ptr,a->argument,128);
-      
-            
-      
-      counter++;
-    }
-    
-    
-  /* Word align - TODO WILL WORK ON THIS LATER*/
-  
-  /* CHECK THIS - add argv[max] */
-  ptr -= pointer_size;
-  *ptr = 0xABCD;
-  ptr -= pointer_size;
-  *ptr = 0xABCD;
-  ptr -= pointer_size;
-  *ptr = 0xABCD;
-  ptr -= pointer_size;
-  *ptr = 0xABCD;
-  
-  
-  
-  /* Pushes argument address onto stack */
-  for (e = list_begin (&arg_list); e != list_end (&arg_list);
-       e = list_next (e))
-    {
-      struct arg_elem *a = list_entry (e, struct arg_elem, elem);
-      
-      *ptr -= pointer_size;
-      
-      strlcpy(ptr, a->stack_pointer, pointer_size);      
-      
-    }
-    
-  /* Pushes pointer to first argument */
-  strlcpy(ptr - pointer_size, ptr, pointer_size);
-  ptr -= pointer_size;
-  
-  /* Pushes number of arguments */
-  *ptr = counter;
-  ptr -= sizeof(int);
-  
-  /* Pushes fake return address */
-  *ptr = 0;
-  ptr -= sizeof(int);
-  
-  hex_dump ((int)ptr, ptr, LOADER_PHYS_BASE-(int)ptr, true);
-  
-  return page - ptr;
 }
 
 /* Adds a mapping from user virtual address UPAGE to kernel
