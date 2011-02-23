@@ -81,15 +81,16 @@ syscall_exec(struct intr_frame *f)
 {
   char* command;
   int* esp = (f->esp);
+  struct semaphore load_success;
+  struct thread* new_t;
   pid_t pid = -1;
   
   command = *(((char*)esp)+1);
   
-   
+  sema_init(&load_success, 0);
   
   pid = process_execute(command);
-  // TODO: hell, synchronisation
-  
+ 
   return pid;
 }
 
