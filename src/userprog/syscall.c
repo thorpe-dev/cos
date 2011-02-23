@@ -25,6 +25,9 @@ static void syscall_seek(int fd, unsigned int position);
 static unsigned int syscall_tell(int fd);
 static void syscall_close (int fd);
 
+static void check_safe_ptr (const void *ptr, int no_args);
+static bool is_safe_ptr (const void* ptr);
+
 void
 syscall_init (void) 
 {
@@ -41,6 +44,7 @@ syscall_handler (struct intr_frame *f)
   void* argument_1 = esp +     sizeof(uint32_t);
   void* argument_2 = esp + 2 * sizeof(uint32_t);
   void* argument_3 = esp + 3 * sizeof(uint32_t);
+      
   
   switch(call_number)
   {
@@ -48,39 +52,51 @@ syscall_handler (struct intr_frame *f)
       syscall_halt(); 
       break;
     case SYS_EXIT:
+      check_safe_ptr (esp, 1);
       syscall_exit(*((int*)argument_1)); 
       break;
     case SYS_EXEC:
+      check_safe_ptr (esp, 1);
       syscall_exec((const char*)argument_1); 
       break;
     case SYS_WAIT:
+      check_safe_ptr (esp, 1);
       syscall_wait(*((pid_t*)argument_1)); 
       break;
     case SYS_CREATE:
+      check_safe_ptr (esp, 2);
       syscall_create((const char*)argument_1, *((unsigned int*)argument_2)); 
       break;
     case SYS_REMOVE: 
+      check_safe_ptr (esp, 1);
       syscall_remove((const char*)argument_1); 
       break;
     case SYS_OPEN:
+      check_safe_ptr (esp, 1);
       syscall_open((const char*)argument_1); 
       break;
     case SYS_FILESIZE:
+      check_safe_ptr (esp, 1);
       syscall_filesize(*((int*)argument_1)); 
       break;
-    case SYS_READ: 
+    case SYS_READ:
+      check_safe_ptr (esp, 3);
       syscall_read(*((int*)argument_1), argument_2, *((unsigned int*)argument_3)); 
       break;
     case SYS_WRITE: 
+      check_safe_ptr (esp, 3);
       syscall_write(*((int*)argument_1), (const void*)argument_2, *((unsigned int*)argument_3)); 
       break;
     case SYS_SEEK: 
-      syscall_seek(*((int*)argument_1), *((unsigned int*)argument_3)); 
+      check_safe_ptr (esp, 2);
+      syscall_seek(*((int*)argument_1), *((unsigned int*)argument_2)); 
       break;
     case SYS_TELL:
+      check_safe_ptr (esp, 1);
       syscall_tell(*((int*)argument_1)); 
       break;
     case SYS_CLOSE: 
+      check_safe_ptr (esp, 1);
       syscall_close(*((int*)argument_1)); 
       break;
     default: 
@@ -209,7 +225,6 @@ syscall_close (int fd)
 
 }
 
-
 /*Return true if pointer is 'safe'*/
 static bool
 is_safe_ptr(const void* vaddr)
@@ -231,5 +246,14 @@ is_safe_ptr(const void* vaddr)
  
   /*Otherwise the pointer is valid*/
   return true;
-  
+}
+
+/* Given the number of arguments, checks that they are all safe pointers*/
+static void 
+check_safe_ptr (const void *ptr, int no_args)
+{
+  int i;
+  for(i = 0; i <= no_args; i++)
+    if (!is_safe_ptr(ptr + (i * sizeof(uint32_t))))
+      kill_current();
 }
