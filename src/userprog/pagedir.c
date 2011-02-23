@@ -127,7 +127,7 @@ pagedir_get_page (uint32_t *pd, const void *uaddr)
 {
   uint32_t *pte;
 
-  //ASSERT (is_user_vaddr (uaddr));
+  // ASSERT (is_user_vaddr (uaddr));
   if(!is_user_vaddr(uaddr))
     return NULL;
 

@@ -165,7 +165,7 @@ syscall_write(int fd, const void *buffer, unsigned int size)
     for (i = size; i > 0; i -= MAXCHAR) {
       if (i < MAXCHAR)
         putbuf(buffer, i);
-        
+
       else {
         putbuf(buffer, MAXCHAR);
         buffer += MAXCHAR;
@@ -207,4 +207,29 @@ static void
 syscall_close (int fd) 
 {
 
+}
+
+
+/*Return true if pointer is 'safe'*/
+static bool
+is_safe_ptr(const void* vaddr)
+{
+  uint32_t *ptr;
+  
+  /*Check pointer not NULL*/
+  if(vaddr == NULL)
+    return false;
+
+  /*Check pointer not kernel address*/
+  if (is_user_vaddr (const void *vaddr))
+    return false;
+
+  /*Check pointer points to mapped space -UNSURE ABOUT THIS*/
+  ptr = lookup_page (active_pd(), vaddr, false)
+  if(ptr == NULL || (*ptr & PTE_P) == 0)
+    return false;
+ 
+  /*Otherwise the pointer is valid*/
+  return true;
+  
 }
