@@ -20,17 +20,13 @@ struct arg_elem
   uint32_t* location;
   struct list_elem elem;
 };
-  
+
 struct process
 {
   pid_t pid;
   struct thread* thread;
   struct semaphore running;
   struct list children;
-};
-
-struct child
-{
   struct list_elem elem;
 };
 
