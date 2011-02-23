@@ -234,13 +234,3 @@ check_safe_ptr (const void *ptr, int no_args)
     if (!is_safe_ptr(ptr + (i * sizeof(uint32_t))))
       kill_current();
 }
-
-
-static bool
-is_safe_ptr (const void* ptr)
-{
-  
-  
-  
-  return true;
-}
