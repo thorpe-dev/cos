@@ -1,5 +1,6 @@
-.texi~
+*~
 *.o
 *.a
+*.orig
 /src/userprog/build/*
 /src/threads/build/*
