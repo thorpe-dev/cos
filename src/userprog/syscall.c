@@ -32,10 +32,13 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f) 
 {
-  unsigned int call_number = *(int*)(f->esp);
+  
+  uint32_t* esp = (f->esp);
+  unsigned int call_number = *esp;
 
-  void* argument_1, argument_2, argument_3;
-  int* esp = (f->esp);
+  void* argument_1 = esp +     sizeof(uint32_t);
+  void* argument_2 = esp + 2 * sizeof(uint32_t);
+  void* argument_3 = esp + 3 * sizeof(uint32_t);
   
   switch(call_number)
   {
@@ -43,58 +46,40 @@ syscall_handler (struct intr_frame *f)
       syscall_halt(); 
       break;
     case SYS_EXIT:
-      argument_1 = *(esp+1);
-      syscall_exit(argument_1); 
+      syscall_exit(*((int*)argument_1)); 
       break;
     case SYS_EXEC:
-      argument_1 = (esp + 1);
-      syscall_exec((char*)argument_1); 
+      syscall_exec((const char*)argument_1); 
       break;
     case SYS_WAIT:
-      argument_1 = *(esp + 1);
-      syscall_wait((pid_t)argument_1); 
+      syscall_wait(*((pid_t*)argument_1)); 
       break;
     case SYS_CREATE:
-      argument_1 = esp + 1;
-      argument_2 = esp + 2;
-      syscall_create((char*)argument_1, (unsigned int)*(argument_2)); 
+      syscall_create((const char*)argument_1, *((unsigned int*)argument_2)); 
       break;
     case SYS_REMOVE: 
-      argument_1 = esp + 1;
-      syscall_remove((char*)argument_1); 
+      syscall_remove((const char*)argument_1); 
       break;
     case SYS_OPEN:
-      argument_1 = esp + 1;
-      syscall_open((char*)argument_1); 
+      syscall_open((const char*)argument_1); 
       break;
     case SYS_FILESIZE:
-      argument_1 = esp + 1;
-      syscall_filesize(*(argument_1)); 
+      syscall_filesize(*((int*)argument_1)); 
       break;
     case SYS_READ: 
-      argument_1 = esp + 1;
-      argument_2 = esp + 2;
-      argument_3 = esp + 3;
-      syscall_read(*(argument_1), (void*)argument_2, (unsigned int)*(argument_3)); 
+      syscall_read(*((int*)argument_1), argument_2, *((unsigned int*)argument_3)); 
       break;
     case SYS_WRITE: 
-      argument_1 = esp + 1;
-      argument_2 = esp + 2;
-      argument_3 = esp + 3;
-      syscall_write(*(argument_1), (void*)argument_2, (unsigned int)*(argument_3)); 
+      syscall_write(*((int*)argument_1), (const void*)argument_2, *((unsigned int*)argument_3)); 
       break;
     case SYS_SEEK: 
-      argument_1 = esp + 1;
-      argument_2 = esp + 2;
-      syscall_seek(*(argument_1), (unsigned int)*(argument_3)); 
+      syscall_seek(*((int*)argument_1), *((unsigned int*)argument_3)); 
       break;
     case SYS_TELL:
-      argument_1 = esp + 1;
-      syscall_tell(*(argument_1)); 
+      syscall_tell(*((int*)argument_1)); 
       break;
     case SYS_CLOSE: 
-      argument_1 = esp + 1;
-      syscall_close(*(argument_1)); 
+      syscall_close(*((int*)argument_1)); 
       break;
     default: 
       printf("Invalid syscall: %d\n", call_number);
