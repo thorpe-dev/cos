@@ -26,9 +26,10 @@ struct arg_elem
 struct process
 {
   pid_t pid;
+  char* command; //Command for use when creating process/thread
   struct thread* thread;
   struct semaphore running;
-
+  struct semaphore load_success;
   struct list children;
   struct list_elem elem;
 };

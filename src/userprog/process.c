@@ -33,29 +33,31 @@ process_execute (const char *command)
   tid_t tid;
   struct process* new_process;
 
-  /* Make a copy of FILE_NAME.
-     Otherwise there's a race between the caller and load(). */
-  command_copy = palloc_get_page (0);
-  if (command_copy == NULL)
-    return TID_ERROR;
-  strlcpy (command_copy, command, PGSIZE);
-
-  
   new_process = malloc(sizeof(struct process)); //TODO: free this
 
+  /* Make a copy of FILE_NAME.
+     Otherwise there's a race between the caller and load(). */
+  new_process->command = malloc(strlen(command)+1);
+  if (new_process->command == NULL)
+    return TID_ERROR;
+  strlcpy (new_process->command, command, strlen(command)+1);
+
+
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (command, PRI_DEFAULT, start_process, command_copy);
+  tid = thread_create (command, PRI_DEFAULT, start_process, new_process);
   if (tid == TID_ERROR)
-    palloc_free_page (command_copy); 
+    free (new_process->command);
+
+  new_process->pid = (pid_t)tid; //pid is the same as the tid
   return tid;
 }
 
 /* A thread function that loads a user process and starts it
    running. */
 static void
-start_process (void *command_)
+start_process (void *process_)
 {
-  char *command = command_;
+  struct process *process = process_;
   struct intr_frame if_;
   bool success;
 
@@ -64,12 +66,19 @@ start_process (void *command_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (command, &if_.eip, &if_.esp);
+  success = load (process->command, &if_.eip, &if_.esp);
+
+  free(process->command); //Free space allocated by process_execute
+  //TODO: Signal thread loaded? Set load success? Set process->thread?
 
   /* If load failed, quit. */
-  palloc_free_page (command);
-  if (!success) 
+  if (!success)
+  {
     thread_exit ();
+  }
+  else {
+    process->command = &thread_current()->name; //TODO: Is this valid?
+  }
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
