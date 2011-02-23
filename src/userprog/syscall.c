@@ -7,6 +7,8 @@
 #include "process.h"
 #include "filesys/filesys.h"
 
+#define MAXCHAR 512
+
 static void syscall_handler (struct intr_frame *);
 
 static void syscall_halt(void);
@@ -156,10 +158,24 @@ syscall_open(const char *file_name)
 
 /* UNIMPLEMENTED */
 static int
-syscall_write(int fd, const void *buffer, unsigned size)
+syscall_write(int fd, const void *buffer, unsigned int size)
 {
+  int i;
+  if (fd == 1) {
+    for (i = size; i > 0; i -= MAXCHAR) {
+      if (i < MAXCHAR)
+        putbuf(buffer, i);
+        
+      else {
+        putbuf(buffer, MAXCHAR);
+        buffer += MAXCHAR;
+      }
+      return size;
+    }
+  }
   
- return size; 
+  else
+    return size; 
 }
 
 
