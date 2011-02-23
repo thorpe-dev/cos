@@ -10,18 +10,18 @@
 static void syscall_handler (struct intr_frame *);
 
 static void syscall_halt(void);
-static void syscall_exit(struct intr_frame *f);
-static pid_t syscall_exec(struct intr_frame *f);
-static void syscall_wait(struct intr_frame *f);
-static bool syscall_create(struct intr_frame *f);
-static bool syscall_remove(struct intr_frame *f);
-static int syscall_open(struct intr_frame *f);
-static int syscall_filesize(struct intr_frame *f);
-static void syscall_read(struct intr_frame *f);
-static void syscall_write(struct intr_frame *f);
-static void syscall_seek(struct intr_frame *f);
-static void syscall_tell(struct intr_frame *f);
-static void syscall_close(struct intr_frame *f);
+static void syscall_exit(int status);
+static pid_t syscall_exec(const char *command);
+static void syscall_wait(pid_t pid);
+static bool syscall_create(const char *file, unsigned initial_size);
+static bool syscall_remove(const char *file);
+static int syscall_open(const char *file_name);
+static int syscall_filesize(int fd);
+static int syscall_read(int fd, void *buffer, unsigned int size);
+static int syscall_write(int fd, const void *buffer, unsigned size);
+static void syscall_seek(int fd, unsigned int position);
+static unsigned int syscall_tell(int fd);
+static void syscall_close (int fd);
 
 void
 syscall_init (void) 
@@ -33,7 +33,7 @@ static void
 syscall_handler (struct intr_frame *f) 
 {
   unsigned int call_number = *(int*)(f->esp);
-  
+
   void* argument_1, argument_2, argument_3;
   int* esp = (f->esp);
   
@@ -110,11 +110,8 @@ syscall_halt(void)
 }
 
 static void
-syscall_exit(struct intr_frame *f) 
+syscall_exit(int status) 
 {
-  int* esp = (f->esp);
-  /* esp + 1 because it should be above esp in the stack */
-  int status = *(esp+1);
   printf("Exiting with status %d\n", status);
   // TODO: handle exit status
   printf("process_exit\n");
@@ -124,15 +121,9 @@ syscall_exit(struct intr_frame *f)
 }
 
 static pid_t 
-syscall_exec(struct intr_frame *f)
+syscall_exec(const char *command)
 {
-  char* command;
-  int* esp = (f->esp);
   pid_t pid = -1;
-  
-  command = (char*)(((int)esp) + 1);
-  
-   
   
   pid = process_execute(command);
   // TODO: hell, synchronisation
@@ -141,51 +132,36 @@ syscall_exec(struct intr_frame *f)
 }
 
 static void 
-syscall_wait(struct intr_frame *f)
+syscall_wait(pid_t pid)
 {
-  int* esp = (f->esp);
-  
-  pid_t pid = *(esp+1);
-  
+ /* ? */ 
 }
 
 static bool 
-syscall_create(struct intr_frame *f)
+syscall_create(const char *file, unsigned int initial_size)
 {
-  int* esp = (f->esp);
-  
-  char* file_name = (char*)(((int)esp) + 1);
-  
-  int file_size = *(esp + 2);
   bool success = false;
   
-  success = filesys_create(file_name, file_size);
+  success = filesys_create(file, initial_size);
   
   return success;
 }
 
 
 static bool 
-syscall_remove(struct intr_frame *f)
+syscall_remove(const char *file)
 {
-  int* esp = (f->esp);
-  
-  char* file_name = (char*)(((int)esp) + 1);
-  
   bool success = false;
   
-  success = filesys_remove(file_name);
+  success = filesys_remove(file);
   
   return success;
 }
 
 
 static int 
-syscall_open(struct intr_frame *f)
+syscall_open(const char *file_name)
 {
-  int* esp = (f->esp);
-  
-  char* file_name = (char*)(((int)esp) + 1);
   struct file* file_ptr;
   file_ptr = filesys_open(file_name);
   
@@ -193,16 +169,41 @@ syscall_open(struct intr_frame *f)
 }
 
 
-static int 
-syscall_filesize(struct intr_frame *f)
+/* UNIMPLEMENTED */
+static int
+syscall_write(int fd, const void *buffer, unsigned size)
 {
-  int* esp = (f->esp);
   
-  int fd = *(esp + 1)
-    
-  return 1;  
+ return size; 
 }
 
-static 
 
+static int 
+syscall_filesize(int fd) 
+{
+  return 0;
+}
 
+static int 
+syscall_read(int fd, void *buffer, unsigned int size)
+{
+  return 0;
+}
+
+static unsigned int 
+syscall_tell (int fd) 
+{
+  return 0;
+}
+
+static void 
+syscall_seek (int fd, unsigned position) 
+{
+  /* ? */ 
+}
+
+static void 
+syscall_close (int fd) 
+{
+
+}
