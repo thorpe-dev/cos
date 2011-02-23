@@ -240,7 +240,7 @@ is_safe_ptr(const void* vaddr)
     return false;
 
   /*Check pointer points to mapped space -UNSURE ABOUT THIS*/
-  ptr = lookup_page (active_pd(), vaddr, false)
+  ptr = lookup_page (active_pd(), vaddr, false);
   if(ptr == NULL || (*ptr & PTE_P) == 0)
     return false;
  
