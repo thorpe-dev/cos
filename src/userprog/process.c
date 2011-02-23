@@ -501,12 +501,13 @@ setup_stack (void **esp, const char *command)
           this_arg = list_entry (e, struct arg_elem, elem);
           ptr -= pointer_size;
           *(uint32_t*)ptr = (uint32_t)this_arg->location;
+          free(this_arg);
         }
-        
+
         /* Pushes pointer to first string pointer */
         ptr -= pointer_size;
         *(uint32_t*)ptr = (uint32_t)(PHYS_BASE-(base-ptr) + pointer_size);
-        
+
         /* Pushes number of arguments */
         ptr -= sizeof(uint32_t);
         *(uint32_t*)ptr = num_args;

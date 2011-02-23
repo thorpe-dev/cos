@@ -2,6 +2,7 @@
 #define USERPROG_PROCESS_H
 
 #include "threads/thread.h"
+#include "threads/synch.h"
 
 tid_t process_execute (const char *file_name);
 int process_wait (tid_t);
@@ -20,18 +21,17 @@ struct arg_elem
   struct list_elem elem;
 };
   
-/*struct process
+struct process
 {
   pid_t pid;
   struct thread* thread;
-  struct semaphore runn
+  struct semaphore running;
   struct list children;
-}
+};
 
 struct child
 {
   struct list_elem elem;
-}*/
-
+};
 
 #endif /* userprog/process.h */
