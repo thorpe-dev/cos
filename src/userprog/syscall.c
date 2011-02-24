@@ -67,7 +67,7 @@ syscall_handler (struct intr_frame *f)
       
     case SYS_EXIT:
       check_safe_ptr (esp, 1);
-      syscall_exit(*((int*)argument_1)); 
+      syscall_exit(*(int*)argument_1); 
       break;
       
     case SYS_EXEC:
@@ -82,7 +82,7 @@ syscall_handler (struct intr_frame *f)
       
     case SYS_CREATE:
       check_safe_ptr (esp, 2);
-      syscall_create(eax, (const char*)argument_1, *((unsigned int*)argument_2)); 
+      syscall_create(eax, (const char*)argument_1, *(unsigned int*)argument_2); 
       break;
       
     case SYS_REMOVE: 
@@ -97,32 +97,32 @@ syscall_handler (struct intr_frame *f)
       
     case SYS_FILESIZE:
       check_safe_ptr (esp, 1);
-      syscall_filesize(eax, *((int*)argument_1)); 
+      syscall_filesize(eax, *(int*)argument_1); 
       break;
       
     case SYS_READ:
       check_safe_ptr (esp, 3);
-      syscall_read(eax, *((int*)argument_1), argument_2, *((unsigned int*)argument_3)); 
+      syscall_read(eax, *(int*)argument_1, argument_2, *((unsigned int*)argument_3)); 
       break;
       
     case SYS_WRITE: 
       check_safe_ptr (esp, 3);
-      syscall_write(eax, *((int*)argument_1), (const void*)argument_2, *((unsigned int*)argument_3)); 
+      syscall_write(eax, *(int*)argument_1, (const void*)argument_2, *((unsigned int*)argument_3)); 
       break;
       
     case SYS_SEEK: 
       check_safe_ptr (esp, 2);
-      syscall_seek(*((int*)argument_1), *((unsigned int*)argument_2)); 
+      syscall_seek(*(int*)argument_1, *(unsigned int*)argument_2); 
       break;
       
     case SYS_TELL:
       check_safe_ptr (esp, 1);
-      syscall_tell(eax, *((int*)argument_1)); 
+      syscall_tell(eax, *(int*)argument_1); 
       break;
       
     case SYS_CLOSE: 
       check_safe_ptr (esp, 1);
-      syscall_close(*((int*)argument_1)); 
+      syscall_close(*(int*)argument_1); 
       break;
       
     default: 
@@ -244,7 +244,6 @@ static void
 syscall_write(uint32_t* eax, int fd, const void *buffer, unsigned int size)
 {
   printf("%X  %X  %X  %X\n", eax, fd, buffer, size);
-  return;
   int i;
   struct open_file* open_file;
   
@@ -403,9 +402,10 @@ static void
 check_safe_ptr (const void *ptr, int no_args)
 {
   int i;
-  for(i = 0; i <= no_args; i++)
+  for(i = 0; i <= no_args; i++){
     if (!is_safe_ptr(ptr + (i * sizeof(uint32_t))))
       kill_current();
+  }
 }
 
 /* Syscall return methods */

@@ -274,7 +274,7 @@ is_safe_ptr(const void* vaddr)
     return false;
 
   /*Check pointer not kernel address*/
-  if (is_user_vaddr (vaddr))
+  if (!is_user_vaddr (vaddr))
     return false;
 
   /*Check pointer points to mapped space -UNSURE ABOUT THIS*/
