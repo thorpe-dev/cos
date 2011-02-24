@@ -52,12 +52,17 @@ syscall_handler (struct intr_frame *f)
   uint32_t* esp = (f->esp);
   uint32_t* eax = &(f->eax);
   unsigned int call_number = *esp;
+  //printf("\n\n");
+  //hex_dump(esp, esp, 200, true);
 
-  void* argument_1 = esp +     sizeof(uint32_t);
-  void* argument_2 = esp + 2 * sizeof(uint32_t);
-  void* argument_3 = esp + 3 * sizeof(uint32_t);
+  void* argument_1 = (void*)(esp + 1);
+  void* argument_2 = (void*)(esp + 2);
+  void* argument_3 = (void*)(esp + 3);
 
-  printf("Thread %s made a syscall: %d!\n", thread_current()->name, call_number);
+  //printf("%X   %X    %X    %X", esp, argument_1, argument_2, argument_3);
+  
+  //printf("%X    %X   %X   %X\n", *esp, *(int*)argument_1, argument_2, *(int*)argument_3);
+  //printf("Thread %s made a syscall: %d!\n", thread_current()->name, call_number);
 
   switch(call_number)
   {
@@ -102,12 +107,12 @@ syscall_handler (struct intr_frame *f)
       
     case SYS_READ:
       check_safe_ptr (esp, 3);
-      syscall_read(eax, *(int*)argument_1, argument_2, *((unsigned int*)argument_3)); 
+      syscall_read(eax, *(int*)argument_1, *(void**)argument_2, *((unsigned int*)argument_3)); 
       break;
       
     case SYS_WRITE: 
       check_safe_ptr (esp, 3);
-      syscall_write(eax, *(int*)argument_1, (const void*)argument_2, *((unsigned int*)argument_3)); 
+      syscall_write(eax, *(int*)argument_1, *(void**)argument_2, *((unsigned int*)argument_3)); 
       break;
       
     case SYS_SEEK: 
@@ -144,8 +149,7 @@ syscall_exit(int status)
 {
   printf("Exiting with status %d\n", status);
   // TODO: handle exit status
-  printf("process_exit\n");
-  process_exit();
+  
   printf("thread_exit\n");
   thread_exit();
 }
@@ -244,7 +248,6 @@ syscall_open(uint32_t* eax, const char *file_name)
 static void
 syscall_write(uint32_t* eax, int fd, const void *buffer, unsigned int size)
 {
-  printf("%X  %X  %X  %X\n", eax, fd, buffer, size);
   int i;
   struct open_file* open_file;
   
@@ -252,10 +255,10 @@ syscall_write(uint32_t* eax, int fd, const void *buffer, unsigned int size)
   if (fd == 1) {
     for (i = size; i > 0; i -= MAXCHAR) {
       if (i < MAXCHAR)
-        putbuf(buffer, i);
+        putbuf((char*)buffer, i);
 
       else {
-        putbuf(buffer, MAXCHAR);
+        putbuf((char*)buffer, MAXCHAR);
         buffer += MAXCHAR;
       }
       syscall_return_int (eax, size);
@@ -405,7 +408,7 @@ check_safe_ptr (const void *ptr, int no_args)
   int i;
   for(i = 0; i <= no_args; i++){
     if (!is_safe_ptr(ptr + (i * sizeof(uint32_t))))
-      kill_current();
+      process_exit();
   }
 }
 

@@ -77,7 +77,7 @@ start_process (void *process_)
   struct thread* thread = thread_current();
   struct intr_frame if_;
   bool success;
-  
+
   thread->process = process; // Set current thread's process descriptor to 
                              // the one passed to us
 
@@ -87,7 +87,9 @@ start_process (void *process_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (process->command, &if_.eip, &if_.esp);
-
+  
+  /* Copy process name to thread name */
+  
   free(process->command); //Free space allocated by process_execute
   //TODO: Chop off command arguments
   process->command = thread->name; // We don't really need this any more,
@@ -284,7 +286,7 @@ load (const char* command, void (**eip) (void), void **esp)
   /* Open executable file and deny write access. */
   file = filesys_open(file_name);
   t->process->process_file = file;
-  //file_deny_write(file);
+  file_deny_write(file);
 
   if (file == NULL) 
     {
@@ -365,8 +367,10 @@ load (const char* command, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  if (!setup_stack (esp, command))
+  if (!setup_stack (esp, command)) {
+    file_close(file);
     goto done;
+  }
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
@@ -593,10 +597,4 @@ install_page (void *upage, void *kpage, bool writable)
      address, then map our page there. */
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
-}
-
-void
-kill_current (void)
-{
-  process_exit();
 }
