@@ -193,13 +193,6 @@ syscall_open(uint32_t* eax, const char *file_name)
   struct file* file_ptr;
   file_ptr = filesys_open(file_name);
   
-  struct inode* i = NULL;
-  
-  off_t f;
-  f = file_ptr->deny_write;
-  
- // i = file_ptr->inode;
- // i->open_cntr++;
   
   syscall_return_int (eax, 2);
 }
