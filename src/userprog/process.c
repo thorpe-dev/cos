@@ -77,6 +77,9 @@ start_process (void *process_)
   struct thread* thread = thread_current();
   struct intr_frame if_;
   bool success;
+  
+  thread->process = process; // Set current thread's process descriptor to 
+                             // the one passed to us
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -92,7 +95,6 @@ start_process (void *process_)
                                     // that makes sense
   process->pid = thread->tid; //pid is the same as the tid
   process->thread = thread;
-  thread->process = process;
   process->load_success = success;
 
   sema_up(&process->load_complete);  // Signal load complete
@@ -280,10 +282,10 @@ load (const char* command, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file and deny write access. */
-  file = filesys_open (file_name);
+  file = filesys_open(file_name);
   t->process->process_file = file;
   file_deny_write(file);
-  
+
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
