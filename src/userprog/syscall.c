@@ -212,6 +212,7 @@ syscall_open(uint32_t* eax, const char *file_name)
   file_ptr = filesys_open(file_name);
   lock_release(&filesys_lock);
   
+
   /* If file not found, set eax to -1*/
   if (file_ptr == NULL) 
   {
@@ -404,7 +405,7 @@ check_safe_ptr (const void *ptr, int no_args)
       kill_current();
 }
 
-
+/* Syscall return methods */
 
 static void
 syscall_return_int (uint32_t* eax, const int value)
