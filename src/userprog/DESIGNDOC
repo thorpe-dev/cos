@@ -64,9 +64,16 @@ push fake return adress
 
 >> A3: Why does Pintos implement strtok_r() but not strtok()?
 
+because the fact that strtok_r also stores the ptr of the location which it tokenised at last means that it can be used for the command line which can have several arguments and needs tokenising several times
+
 >> A4: In Pintos, the kernel separates commands into a executable name
 >> and arguments.  In Unix-like systems, the shell does this
 >> separation.  Identify at least two advantages of the Unix approach.
+
+Adv 1:
+the shell can pre-process arguments like * and expand the arguments to what they actually are so that the kernel only has to deal with real arguments
+Adv 2:
+do less work in kernel space, the more work done in user space the better, splitting a string can just be done in user space
 
                  SYSTEM CALLS
                  ============
