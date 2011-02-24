@@ -52,7 +52,7 @@ syscall_handler (struct intr_frame *f)
   void* argument_2 = esp + 2 * sizeof(uint32_t);
   void* argument_3 = esp + 3 * sizeof(uint32_t);
 
-  printf("Thread %s made a syscall!\n", thread_current()->name);
+  printf("Thread %s made a syscall: %d!\n", thread_current()->name, call_number);
 
   switch(call_number)
   {
@@ -203,6 +203,8 @@ syscall_open(uint32_t* eax, const char *file_name)
 static void
 syscall_write(uint32_t* eax, int fd, const void *buffer, unsigned int size)
 {
+  printf("%X  %X  %X  %X\n", eax, fd, buffer, size);
+  return;
   int i;
   if (fd == 1) {
     for (i = size; i > 0; i -= MAXCHAR) {
