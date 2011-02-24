@@ -29,53 +29,79 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *command)
 {
-  char *command_copy;
   tid_t tid;
+  struct process* current_process;
   struct process* new_process;
-  
+
+  current_process = thread_current()->process;
+  new_process = malloc(sizeof(struct process)); //TODO: free this
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
-  command_copy = palloc_get_page (0);
-  if (command_copy == NULL)
+  new_process->command = malloc(strlen(command)+1);
+  if (new_process->command == NULL)
     return TID_ERROR;
-  strlcpy (command_copy, command, PGSIZE);
+  strlcpy (new_process->command, command, strlen(command)+1);
 
   
-  new_process = malloc(sizeof(struct process)); //TODO: free this
-  
-  
-  /* Initialised the list of open files */
+  new_process->load_success = false;
+  new_process->exit_status = EXIT_FAILURE;
+  sema_init(&new_process->load_complete, 0);
+  sema_init(&new_process->exit_complete, 0);
+  new_process->pid = PID_ERROR;
+  list_init(&new_process->children);
   list_init(&new_process->open_files);
   new_process->next_fd = 2;
-  
+
+  if(current_process != NULL) {
+    list_push_front(&current_process->children, &new_process->child_elem);
+  }
+
+
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (command, PRI_DEFAULT, start_process, command_copy);
-  if (tid == TID_ERROR)
-    palloc_free_page (command_copy); 
+  tid = thread_create (command, PRI_DEFAULT, start_process, new_process);
+  if (tid == TID_ERROR) {
+    free(new_process->command);
+    //If the thread was successfully created, start_process will free this
+  }
+
   return tid;
 }
 
 /* A thread function that loads a user process and starts it
    running. */
 static void
-start_process (void *command_)
+start_process (void *process_)
 {
-  char *command = command_;
+  struct process* process = process_;
+  struct thread* thread = thread_current();
   struct intr_frame if_;
   bool success;
+  
+  thread->process = process; // Set current thread's process descriptor to 
+                             // the one passed to us
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (command, &if_.eip, &if_.esp);
+  success = load (process->command, &if_.eip, &if_.esp);
+
+  free(process->command); //Free space allocated by process_execute
+  //TODO: Chop off command arguments
+  process->command = thread->name; // We don't really need this any more,
+                                    // but it might as well point to something
+                                    // that makes sense
+  process->pid = thread->tid; //pid is the same as the tid
+  process->thread = thread;
+  process->load_success = success;
+
+  sema_up(&process->load_complete);  // Signal load complete
 
   /* If load failed, quit. */
-  palloc_free_page (command);
-  if (!success) 
-    thread_exit ();
+  if (!success)
+    thread_exit();
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -256,10 +282,10 @@ load (const char* command, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file and deny write access. */
-  file = filesys_open (file_name);
+  file = filesys_open(file_name);
   t->process->process_file = file;
   file_deny_write(file);
-  
+
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -515,17 +541,17 @@ setup_stack (void **esp, const char *command)
         // Word Align
         ptr = (uint8_t*)((int)ptr & ~0x3);
 
-        printf("Push 0\n");
         ptr -= pointer_size;
         *ptr = 0;
 
         /* Pushes argument address (string pointers) onto stack */
-        for (e = list_begin(&arguments); e != list_end(&arguments);
-             e = list_next (e))
+        e = list_begin(&arguments);
+        while(e != list_end(&arguments))
         {
-          this_arg = list_entry (e, struct arg_elem, elem);
+          this_arg = list_entry(e, struct arg_elem, elem);
           ptr -= pointer_size;
           *(uint32_t*)ptr = (uint32_t)this_arg->location;
+          e = list_next(e);
           free(this_arg);
         }
 
@@ -540,13 +566,6 @@ setup_stack (void **esp, const char *command)
         /* Pushes fake return address */
         ptr -= pointer_size;
         *(uint32_t*)ptr = 0;
-
-        /* DEBUG
-        hex_dump ((int)PHYS_BASE - (base - ptr), ptr, ((int)kpage + PGSIZE) - (int)ptr, true);
-        printf("ptr = 0x%X\n", ptr);
-        printf("kpage = 0x%X\n", kpage);
-        printf("PGSIZE = 0x%X\n", PGSIZE);
-        */
 
         *esp = PHYS_BASE - (base - ptr);
       }

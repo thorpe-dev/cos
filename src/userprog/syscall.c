@@ -56,8 +56,9 @@ syscall_handler (struct intr_frame *f)
   void* argument_1 = esp +     sizeof(uint32_t);
   void* argument_2 = esp + 2 * sizeof(uint32_t);
   void* argument_3 = esp + 3 * sizeof(uint32_t);
-      
-  
+
+  printf("Thread %s made a syscall: %d!\n", thread_current()->name, call_number);
+
   switch(call_number)
   {
     case SYS_HALT: 
@@ -151,15 +152,15 @@ syscall_exit(int status)
 static void 
 syscall_exec(uint32_t* eax, const char *command)
 {
-  struct semaphore load_success;
-  struct thread* new_t;
-  pid_t pid = -1;
-    
-  sema_init(&load_success, 0);
-  
-  pid = process_execute(command);
- 
-  syscall_return_int (eax, pid);
+  struct process* p;
+  process_execute(command);
+  // New process is at the head of the list of this process's children
+  p = list_entry(list_front(&(thread_current()->process->children)), struct process, child_elem);
+
+  sema_down(&p->load_complete);
+  sema_up(&p->load_complete);
+
+  syscall_return_int (eax, p->pid);
 }
 
 static void 
@@ -242,6 +243,8 @@ syscall_open(uint32_t* eax, const char *file_name)
 static void
 syscall_write(uint32_t* eax, int fd, const void *buffer, unsigned int size)
 {
+  printf("%X  %X  %X  %X\n", eax, fd, buffer, size);
+  return;
   int i;
   struct open_file* open_file;
   
