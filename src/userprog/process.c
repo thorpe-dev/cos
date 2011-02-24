@@ -284,7 +284,7 @@ load (const char* command, void (**eip) (void), void **esp)
   /* Open executable file and deny write access. */
   file = filesys_open(file_name);
   t->process->process_file = file;
-  file_deny_write(file);
+  //file_deny_write(file);
 
   if (file == NULL) 
     {

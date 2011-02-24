@@ -121,6 +121,7 @@ syscall_handler (struct intr_frame *f)
       break;
       
     case SYS_CLOSE: 
+      printf("esp = %X\n", esp);
       check_safe_ptr (esp, 1);
       syscall_close(*((int*)argument_1)); 
       break;
