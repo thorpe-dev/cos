@@ -43,16 +43,20 @@ process_execute (const char *command)
     return TID_ERROR;
   strlcpy (new_process->command, command, strlen(command)+1);
 
+  
   new_process->load_success = false;
   new_process->exit_status = EXIT_FAILURE;
   sema_init(&new_process->load_complete, 0);
   sema_init(&new_process->exit_complete, 0);
   new_process->pid = PID_ERROR;
   list_init(&new_process->children);
+  list_init(&new_process->open_files);
+  new_process->next_fd = 2;
 
   if(current_process != NULL) {
     list_push_front(&current_process->children, &new_process->child_elem);
   }
+
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (command, PRI_DEFAULT, start_process, new_process);
@@ -128,7 +132,19 @@ void
 process_exit (void)
 {
   struct thread *cur = thread_current ();
+  struct open_file* open_file;
+  struct list_elem* e;
+  
   uint32_t *pd;
+  
+   for (e = list_begin (&cur->process->open_files); e != list_end (&cur->process->open_files);
+      e = list_next (e)) 
+      {
+        open_file = list_entry (e, struct open_file, elem);
+        file_close (open_file->file);
+      }
+      
+  file_close(cur->process->process_file);
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -263,8 +279,11 @@ load (const char* command, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
-  /* Open executable file. */
+  /* Open executable file and deny write access. */
   file = filesys_open (file_name);
+  t->process->process_file = file;
+  file_deny_write(file);
+  
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -354,7 +373,7 @@ load (const char* command, void (**eip) (void), void **esp)
 
  done:
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
+  //file_close (file);
   return success;
 }
 

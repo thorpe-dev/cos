@@ -38,6 +38,20 @@ struct process
   struct list_elem child_elem;
   // Members below here are only initialised upon successful thread creation
   struct thread* thread;
+
+  struct file* process_file;
+  struct list open_files;
+  int next_fd;
 };
+
+struct open_file
+{
+  struct file* file;
+  
+  int fd;
+  
+  struct list_elem elem;
+};
+
 
 #endif /* userprog/process.h */
