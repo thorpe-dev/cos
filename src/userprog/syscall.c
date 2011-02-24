@@ -77,7 +77,7 @@ syscall_handler (struct intr_frame *f)
       
     case SYS_EXEC:
       check_safe_ptr (esp, 1);
-      syscall_exec(eax, (const char*)argument_1); 
+      syscall_exec(eax, *(const char**)argument_1); 
       break;
       
     case SYS_WAIT:
@@ -87,17 +87,17 @@ syscall_handler (struct intr_frame *f)
       
     case SYS_CREATE:
       check_safe_ptr (esp, 2);
-      syscall_create(eax, (const char*)argument_1, *(unsigned int*)argument_2); 
+      syscall_create(eax, *(const char**)argument_1, *(unsigned int*)argument_2); 
       break;
       
     case SYS_REMOVE: 
       check_safe_ptr (esp, 1);
-      syscall_remove(eax, (const char*)argument_1); 
+      syscall_remove(eax, *(const char**)argument_1); 
       break;
       
     case SYS_OPEN:
       check_safe_ptr (esp, 1);
-      syscall_open(eax, (const char*)argument_1); 
+      syscall_open(eax, *(const char**)argument_1); 
       break;
       
     case SYS_FILESIZE:
