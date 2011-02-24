@@ -52,17 +52,10 @@ syscall_handler (struct intr_frame *f)
   uint32_t* esp = (f->esp);
   uint32_t* eax = &(f->eax);
   unsigned int call_number = *esp;
-  //printf("\n\n");
-  //hex_dump(esp, esp, 200, true);
 
   void* argument_1 = (void*)(esp + 1);
   void* argument_2 = (void*)(esp + 2);
   void* argument_3 = (void*)(esp + 3);
-
-  //printf("%X   %X    %X    %X", esp, argument_1, argument_2, argument_3);
-  
-  //printf("%X    %X   %X   %X\n", *esp, *(int*)argument_1, argument_2, *(int*)argument_3);
-  //printf("Thread %s made a syscall: %d!\n", thread_current()->name, call_number);
 
   switch(call_number)
   {
@@ -77,7 +70,7 @@ syscall_handler (struct intr_frame *f)
       
     case SYS_EXEC:
       check_safe_ptr (esp, 1);
-      syscall_exec(eax, (const char*)argument_1); 
+      syscall_exec(eax, *(const char**)argument_1); 
       break;
       
     case SYS_WAIT:
@@ -87,17 +80,17 @@ syscall_handler (struct intr_frame *f)
       
     case SYS_CREATE:
       check_safe_ptr (esp, 2);
-      syscall_create(eax, (const char*)argument_1, *(unsigned int*)argument_2); 
+      syscall_create(eax, *(const char**)argument_1, *(unsigned int*)argument_2); 
       break;
       
     case SYS_REMOVE: 
       check_safe_ptr (esp, 1);
-      syscall_remove(eax, (const char*)argument_1); 
+      syscall_remove(eax, *(const char**)argument_1); 
       break;
       
     case SYS_OPEN:
       check_safe_ptr (esp, 1);
-      syscall_open(eax, (const char*)argument_1); 
+      syscall_open(eax, *(const char**)argument_1); 
       break;
       
     case SYS_FILESIZE:
@@ -244,7 +237,6 @@ syscall_open(uint32_t* eax, const char *file_name)
 }
 
 
-/* UNIMPLEMENTED */
 static void
 syscall_write(uint32_t* eax, int fd, const void *buffer, unsigned int size)
 {
