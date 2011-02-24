@@ -30,11 +30,35 @@ FirstName LastName <email@domain.example>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+Argument list element holds the argument, its length and its location
+on the stack:
+struct arg_elem
+{
+  char argument[128];
+  int length;
+  uint32_t* location;
+  struct list_elem elem;
+};
+
+
+List of the above command line arguments elements in setup_stack():
+    struct list arguments;
+
 ---- ALGORITHMS ----
 
 >> A2: Briefly describe how you implemented argument parsing.  How do
 >> you arrange for the elements of argv[] to be in the right order?
 >> How do you avoid overflowing the stack page?
+
+Outline:
+-Place all arguments into the list arguments in backwards order and count number of args
+-Push actual arguments onto the stack in the order of the list (which is now backwards) and save their location on the stack in the list
+Align and push arg[max]
+-Push pointers from the list onto the stack in the order of the list (backwards)
+push pointer to last pointer
+push number of args
+push fake return adress
+
 
 ---- RATIONALE ----
 

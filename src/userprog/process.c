@@ -29,10 +29,11 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *command)
 {
-  char *command_copy;
   tid_t tid;
+  struct process* current_process;
   struct process* new_process;
 
+  current_process = thread_current()->process;
   new_process = malloc(sizeof(struct process)); //TODO: free this
 
   /* Make a copy of FILE_NAME.
@@ -42,13 +43,24 @@ process_execute (const char *command)
     return TID_ERROR;
   strlcpy (new_process->command, command, strlen(command)+1);
 
+  new_process->load_success = false;
+  new_process->exit_status = EXIT_FAILURE;
+  sema_init(&new_process->load_complete, 0);
+  sema_init(&new_process->exit_complete, 0);
+  new_process->pid = PID_ERROR;
+  list_init(&new_process->children);
+
+  if(current_process != NULL) {
+    list_push_front(&current_process->children, &new_process->child_elem);
+  }
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (command, PRI_DEFAULT, start_process, new_process);
-  if (tid == TID_ERROR)
-    free (new_process->command);
+  if (tid == TID_ERROR) {
+    free(new_process->command);
+    //If the thread was successfully created, start_process will free this
+  }
 
-  new_process->pid = (pid_t)tid; //pid is the same as the tid
   return tid;
 }
 
@@ -57,7 +69,8 @@ process_execute (const char *command)
 static void
 start_process (void *process_)
 {
-  struct process *process = process_;
+  struct process* process = process_;
+  struct thread* thread = thread_current();
   struct intr_frame if_;
   bool success;
 
@@ -69,16 +82,20 @@ start_process (void *process_)
   success = load (process->command, &if_.eip, &if_.esp);
 
   free(process->command); //Free space allocated by process_execute
-  //TODO: Signal thread loaded? Set load success? Set process->thread?
+  //TODO: Chop off command arguments
+  process->command = thread->name; // We don't really need this any more,
+                                    // but it might as well point to something
+                                    // that makes sense
+  process->pid = thread->tid; //pid is the same as the tid
+  process->thread = thread;
+  thread->process = process;
+  process->load_success = success;
+
+  sema_up(&process->load_complete);  // Signal load complete
 
   /* If load failed, quit. */
   if (!success)
-  {
-    thread_exit ();
-  }
-  else {
-    process->command = &thread_current()->name; //TODO: Is this valid?
-  }
+    thread_exit();
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -503,17 +520,17 @@ setup_stack (void **esp, const char *command)
         // Word Align
         ptr = (uint8_t*)((int)ptr & ~0x3);
 
-        printf("Push 0\n");
         ptr -= pointer_size;
         *ptr = 0;
 
         /* Pushes argument address (string pointers) onto stack */
-        for (e = list_begin(&arguments); e != list_end(&arguments);
-             e = list_next (e))
+        e = list_begin(&arguments);
+        while(e != list_end(&arguments))
         {
-          this_arg = list_entry (e, struct arg_elem, elem);
+          this_arg = list_entry(e, struct arg_elem, elem);
           ptr -= pointer_size;
           *(uint32_t*)ptr = (uint32_t)this_arg->location;
+          e = list_next(e);
           free(this_arg);
         }
 
@@ -528,13 +545,6 @@ setup_stack (void **esp, const char *command)
         /* Pushes fake return address */
         ptr -= pointer_size;
         *(uint32_t*)ptr = 0;
-
-        /* DEBUG
-        hex_dump ((int)PHYS_BASE - (base - ptr), ptr, ((int)kpage + PGSIZE) - (int)ptr, true);
-        printf("ptr = 0x%X\n", ptr);
-        printf("kpage = 0x%X\n", kpage);
-        printf("PGSIZE = 0x%X\n", PGSIZE);
-        */
 
         *esp = PHYS_BASE - (base - ptr);
       }
