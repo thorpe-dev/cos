@@ -32,6 +32,7 @@ process_execute (const char *command)
   char *command_copy;
   tid_t tid;
   struct process* new_process;
+  
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -42,7 +43,12 @@ process_execute (const char *command)
 
   
   new_process = malloc(sizeof(struct process)); //TODO: free this
-
+  
+  
+  /* Initialised the list of open files */
+  list_init(&new_process->open_files);
+  new_process->next_fd = 2;
+  
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (command, PRI_DEFAULT, start_process, command_copy);
   if (tid == TID_ERROR)
@@ -102,7 +108,19 @@ void
 process_exit (void)
 {
   struct thread *cur = thread_current ();
+  struct open_file* open_file;
+  struct list_elem* e;
+  
   uint32_t *pd;
+  
+   for (e = list_begin (&cur->process->open_files); e != list_end (&cur->process->open_files);
+      e = list_next (e)) 
+      {
+        open_file = list_entry (e, struct open_file, elem);
+        file_close (open_file->file);
+      }
+      
+  file_close(cur->process->process_file);
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -237,8 +255,11 @@ load (const char* command, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
-  /* Open executable file. */
+  /* Open executable file and deny write access. */
   file = filesys_open (file_name);
+  t->process->process_file = file;
+  file_deny_write(file);
+  
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -328,7 +349,7 @@ load (const char* command, void (**eip) (void), void **esp)
 
  done:
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
+  //file_close (file);
   return success;
 }
 

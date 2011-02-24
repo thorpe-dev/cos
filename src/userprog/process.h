@@ -28,9 +28,25 @@ struct process
   pid_t pid;
   struct thread* thread;
   struct semaphore running;
+  
+  struct file* process_file;
 
   struct list children;
   struct list_elem elem;
+  
+  struct list open_files;
+    
+  int next_fd;
 };
+
+struct open_file
+{
+  struct file* file;
+  
+  int fd;
+  
+  struct list_elem elem;
+};
+
 
 #endif /* userprog/process.h */

@@ -101,11 +101,13 @@ struct thread
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
     struct process* process;            /* This thread's associated process */
+    
 #endif
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
+ 
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
