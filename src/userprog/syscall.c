@@ -165,7 +165,7 @@ syscall_exec(uint32_t* eax, const char *command)
 static void 
 syscall_wait(uint32_t* eax, pid_t pid)
 {
- /* ? */ 
+ /* ? */
  int status = -1;
  syscall_return_pid_t (eax, status);
 }
