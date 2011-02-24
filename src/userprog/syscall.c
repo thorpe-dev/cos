@@ -7,6 +7,7 @@
 #include "process.h"
 #include "filesys/filesys.h"
 #include "userprog/pagedir.h"
+#include "filesys/file.h"
 
 #define MAXCHAR 512
 
@@ -193,6 +194,7 @@ syscall_open(uint32_t* eax, const char *file_name)
   struct file* file_ptr;
   file_ptr = filesys_open(file_name);
   
+  
   syscall_return_int (eax, 2);
 }
 
@@ -260,7 +262,7 @@ check_safe_ptr (const void *ptr, int no_args)
       kill_current();
 }
 
-
+/* Syscall return methods */
 
 static void
 syscall_return_int (uint32_t* eax, const int value)
