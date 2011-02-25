@@ -145,8 +145,7 @@ syscall_exit(int status)
 {
   struct thread* t = thread_current();
   t->process->exit_status = status;
-  
-  //printf ("%s: exit(%d)\n",t->name, status);
+
   thread_exit();
   NOT_REACHED ();
 }
@@ -269,17 +268,16 @@ syscall_filesize(uint32_t* eax, int fd)
 {
   int size;
   struct file* file;
-  
+
   file = find_file ( fd );
-  
-  lock_acquire(&filesys_lock);
-  
+
   /* If fd is incorrect, return -1 */
   if (file == NULL)
     syscall_return_int(eax, -1);
-  
+
   else 
   {
+    lock_acquire(&filesys_lock);
     size = (int) file_length(file);
     lock_release(&filesys_lock);
     syscall_return_int (eax, size);
@@ -378,17 +376,6 @@ syscall_close (int fd)
 
 }
 
-/* Given the number of arguments, checks that they are all safe pointers*/
-static void 
-check_safe_ptr (const void *ptr, int no_args)
-{
-  int i;
-  for(i = 0; i <= no_args; i++){
-    if (!is_safe_ptr(ptr + (i * sizeof(uint32_t))))
-      thread_exit();
-  }
-}
-
 /* Syscall return methods */
 
 static void
@@ -414,6 +401,7 @@ syscall_return_uint (uint32_t* eax, const unsigned value)
 {
   *eax = value;
 }
+
 
 /* Returns the file associated with the given file descriptor */
 static struct file*
@@ -442,4 +430,15 @@ check_buffer_safety (const void* buffer, int size)
     thread_exit();
   else
     return;
+}
+
+/* Given the number of arguments, checks that they are all safe pointers*/
+static void 
+check_safe_ptr (const void *ptr, int no_args)
+{
+  int i;
+  for(i = 0; i <= no_args; i++){
+    if (!is_safe_ptr(ptr + (i * sizeof(uint32_t))))
+      thread_exit();
+  }
 }
