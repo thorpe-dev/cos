@@ -50,30 +50,29 @@ List of the above command line arguments elements in setup_stack():
 >> you arrange for the elements of argv[] to be in the right order?
 >> How do you avoid overflowing the stack page?
 
-Outline:
--Place all arguments into the list arguments in backwards order and count number of args
--Push actual arguments onto the stack in the order of the list (which is now backwards) and save their location on the stack in the list
-Align and push arg[max]
--Push pointers from the list onto the stack in the order of the list (backwards)
-push pointer to last pointer
-push number of args
-push fake return adress
+To begin with we tokenise the copy the command line to token so that we can modify it and then we place all arguments into the arguments list in backwards order by pushing them to the front of the list in the order they are tokenised. During this loop we also count the total number of args.
 
+Next we push the actual arguments onto the stack in arguments list order, which is now effectively backwards or in other words right-to-left on the command line as expected. As each argument is actually pushed onto the stack, a pointer to its location on the stack is also saved in the list in *location.
+
+Word alignement and push arg[max] are pushed onto the stack ???
+
+One last loop iteration is performed to push the location pointers onto the stack once again in the order of the list hence right-to-left on the command line.
+
+Finally we push a pointer to last pointer, ie. argv, the total number of args, ie. argc, and a fake return address with just 0s???
 
 ---- RATIONALE ----
 
 >> A3: Why does Pintos implement strtok_r() but not strtok()?
 
-because the fact that strtok_r also stores the ptr of the location which it tokenised at last means that it can be used for the command line which can have several arguments and needs tokenising several times
+The main difference between strtok() and strtok_r() is that strtok_r() stores the pointer of the location which it tokenised wheareas strtok() does not. Since The function strtok_r() is mainly given to us for tokenising the command line in Pintos which can have several arguments and needs tokenising several times, it is more useful to be able to have this added functionality from strtok_r().
 
 >> A4: In Pintos, the kernel separates commands into a executable name
 >> and arguments.  In Unix-like systems, the shell does this
 >> separation.  Identify at least two advantages of the Unix approach.
 
-Adv 1:
-the shell can pre-process arguments like * and expand the arguments to what they actually are so that the kernel only has to deal with real arguments
-Adv 2:
-do less work in kernel space, the more work done in user space the better, splitting a string can just be done in user space
+One advantage of the Unix approach is that the shell can pre-process arguments like * and expand the arguments to what they actually are in the filesystem so that the kernel only has to deal with real arguments.
+
+A second advantage is that in Unix less work is done in kernel space, since splitting a string does not require any kernel privilidges it can be done in user space after all the the more work done in user space the better.
 
                  SYSTEM CALLS
                  ============
