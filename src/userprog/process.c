@@ -72,7 +72,6 @@ process_execute (const char *command)
   // Wait for load to complete
   sema_down(&new_process->load_complete);
   sema_up(&new_process->load_complete);
-  printf("Load complete!\n");
 
   return tid;
 }
