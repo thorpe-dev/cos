@@ -370,7 +370,6 @@ syscall_close (int fd)
   {
     /* Lock filesystem, close file, unlock */
     lock_acquire(&filesys_lock);
-    printf("File fd %d being closed\n", fd);
     list_remove(&file->elem);
     file_close(file);
     lock_release(&filesys_lock);
