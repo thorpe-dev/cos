@@ -83,9 +83,33 @@ A second advantage is that in Unix less work is done in kernel space, since spli
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+
+struct process
+{
+  char* command; 
+  bool load_success; 
+  struct semaphore load_complete; 
+  int exit_status; 
+  struct semaphore exit_complete; 
+  pid_t pid;
+
+
+
+  struct list children;
+  struct list_elem child_elem;
+  struct thread* thread;
+  struct file* process_file;
+  struct list open_files;
+  int next_fd;
+};
+
+
+
 >> B2: Describe how file descriptors are associated with open files.
 >> Are file descriptors unique within the entire OS or just within a
 >> single process?
+
+Each process has an associated list of open files beginning with the file descriptor 2 (as 1 is reserved for console writes), which gets a new file descriptor struct (?) added to it each time a syscall_open is called, with its fd as the process->next_fd which is then incremented itself. Therefore there is no universal list of open files with the same fd for each file, but rather individual open files lists for each process. ???
 
 ---- ALGORITHMS ----
 
@@ -116,6 +140,13 @@ A second advantage is that in Unix less work is done in kernel space, since spli
 >> paragraphs, describe the strategy or strategies you adopted for
 >> managing these issues.  Give an example.
 
+Need more detail:
+In order to not obscure the primary function of system call code, pointers are checked if they are safe through the check_safe_ptr() function call which takes the esp and checks that the number of args in a loop which the syscall will require are valid, eg. in syscall_close only one argument is needed, and should be found at esp+4, therefore esp is passed in and the integer 1 is passed so that only esp and esp+4 need to be checked if they are safe. 
+
+This function check_safe_ptr() then calls is_safe_ptr(), a function written in pagedir.c, to check each individual pointer and check that it is not NULL, over PHYSBASE or pointing to memory which has not been allocated yet.
+
+To ensure that allocated resources are freed, if the is_safe_ptr() returns false, then the process is killed with thread_exit() which then frees up all the resources used??
+
 ---- SYNCHRONIZATION ----
 
 >> B7: The "exec" system call returns -1 if loading the new executable
@@ -138,8 +169,14 @@ A second advantage is that in Unix less work is done in kernel space, since spli
 >> B10: What advantages or disadvantages can you see to your design
 >> for file descriptors?
 
+Each process has a list of file_descriptors. The clear disadvantage of this is that rather that space is wasted as if there was only one universal list then less memory would be wasted with these extra unnecessary pointers.
+
+However, there is an advantage to this method as its easier to just allocate an fd to a file as its needed rather than allocating an fd to all files at the start before any process is even started.
+
 >> B11: The default tid_t to pid_t mapping is the identity mapping.
 >> If you changed it, what advantages are there to your approach?
+
+Did we change this ????
 
                SURVEY QUESTIONS
                ================
@@ -153,15 +190,24 @@ the quarter.
 >> In your opinion, was this assignment, or any one of the three problems
 >> in it, too easy or too hard?  Did it take too long or too little time?
 
+They were all fairly hard, although altogether it took less time and was probably less difficult than task 1.
+
 >> Did you find that working on a particular part of the assignment gave
 >> you greater insight into some aspect of OS design?
+
+?
 
 >> Is there some particular fact or hint we should give students in
 >> future quarters to help them solve the problems?  Conversely, did you
 >> find any of our guidance to be misleading?
 
+?
+
 >> Do you have any suggestions for the TAs to more effectively assist
 >> students, either for future quarters or the remaining tasks?
 
+We did not ask for any help from the TAs.
+
 >> Any other comments?
 
+?
