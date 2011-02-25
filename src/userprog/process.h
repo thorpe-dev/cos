@@ -26,11 +26,16 @@ struct arg_elem
 
 struct process
 {
-  char* command; //Command for use when loading process/thread
-  bool load_success; //Initialised to false
-  struct semaphore load_complete; //Initialised to 0
-  int exit_status; //Initialised to EXIT_FAILURE
-  struct semaphore exit_complete; //Initialised to 0
+  /* Command for use when loading process/thread */
+  char* command;
+  /* Initialised to false */
+  bool load_success;
+  /* Initialised to 0 */
+  struct semaphore load_complete;
+  /* Initialised to EXIT_FAILURE */
+  int exit_status;
+  /* Initialised to 0 */
+  struct semaphore exit_complete;
   pid_t pid;
   struct list_elem child_elem;
   struct list open_files;

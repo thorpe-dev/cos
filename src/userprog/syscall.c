@@ -52,17 +52,10 @@ syscall_handler (struct intr_frame *f)
   uint32_t* esp = (f->esp);
   uint32_t* eax = &(f->eax);
   unsigned int call_number = *esp;
-  //printf("\n\n");
-  //hex_dump(esp, esp, 200, true);
 
   void* argument_1 = (void*)(esp + 1);
   void* argument_2 = (void*)(esp + 2);
   void* argument_3 = (void*)(esp + 3);
-
-  //printf("%X   %X    %X    %X", esp, argument_1, argument_2, argument_3);
-  
-  //printf("%X    %X   %X   %X\n", *esp, *(int*)argument_1, argument_2, *(int*)argument_3);
-  //printf("Thread %s made a syscall: %d!\n", thread_current()->name, call_number);
 
   switch(call_number)
   {
@@ -126,7 +119,6 @@ syscall_handler (struct intr_frame *f)
       break;
       
     case SYS_CLOSE: 
-      printf("esp = %X\n", esp);
       check_safe_ptr (esp, 1);
       syscall_close(*(int*)argument_1); 
       break;
@@ -147,11 +139,12 @@ syscall_halt(void)
 static void
 syscall_exit(int status) 
 {
-  printf("Exiting with status %d\n", status);
-  // TODO: handle exit status
+  struct thread* t = thread_current();
+  t->process->exit_status = status;
   
-  printf("thread_exit\n");
+  printf ("%s: exit(%d)\n",t->name, status);
   thread_exit();
+  NOT_REACHED ();
 }
 
 static void 
@@ -178,6 +171,7 @@ syscall_wait(uint32_t* eax, pid_t pid)
   syscall_return_pid_t (eax, process_wait(pid));
 }
 
+/* Lock filesystem, create file, unlock, return bool for success*/
 static void 
 syscall_create(uint32_t* eax, const char *file, unsigned int initial_size)
 {
@@ -230,7 +224,6 @@ syscall_open(uint32_t* eax, const char *file_name)
 }
 
 
-/* UNIMPLEMENTED */
 static void
 syscall_write(uint32_t* eax, int fd, const void *buffer, unsigned int size)
 {
@@ -392,7 +385,7 @@ check_safe_ptr (const void *ptr, int no_args)
   int i;
   for(i = 0; i <= no_args; i++){
     if (!is_safe_ptr(ptr + (i * sizeof(uint32_t))))
-      process_exit();
+      thread_exit();
   }
 }
 
