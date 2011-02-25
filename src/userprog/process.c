@@ -38,7 +38,9 @@ process_execute (const char *command)
   char* file_name = malloc(strlen(command) + 1);
 
   current_process = thread_current()->process;
-  new_process = malloc(sizeof(struct process)); //TODO: free this
+  
+  /* TODO: free this */
+  new_process = malloc(sizeof(struct process));
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -68,8 +70,8 @@ process_execute (const char *command)
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, new_process);
   if (tid == TID_ERROR) {
+    /* If the thread was successfully created, start_process will free this */
     free(new_process->command);
-    //If the thread was successfully created, start_process will free this
   }
   
   /* Free file_name, as it is no longer used*/
@@ -136,7 +138,8 @@ start_process (void *process_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  while(1); // TODO: Fix
+  /* TODO: Fix */
+  while(1);
   return -1;
 }
 
@@ -155,6 +158,7 @@ process_exit (void)
       {
         open_file = list_entry (e, struct open_file, elem);
         file_close (open_file->file);
+        free(open_file);
       }
       
       
@@ -176,6 +180,9 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+    
+  free(&cur->process->children);
+  free(&cur->process->open_files);
     
   sema_up(&cur->process->exit_complete);
   
@@ -280,9 +287,6 @@ load (const char* command, void (**eip) (void), void **esp)
   off_t file_ofs;
   bool success = false;
   int i;
-  //char file_name[16] = "";
-  
-  //return_file_name(file_name, command);
 
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
@@ -386,7 +390,6 @@ load (const char* command, void (**eip) (void), void **esp)
 
  done:
   /* We arrive here whether the load is successful or not. */
-  //file_close (file);
   return success;
 }
 
@@ -509,7 +512,8 @@ setup_stack (void **esp, const char *command)
   struct list arguments;
   struct list_elem* e = NULL;
   struct arg_elem* this_arg = NULL;
-  char command_copy[128]; // Copy of the command - strtok modifies it
+  /* Copy of the command as strtok modifies it */
+  char command_copy[128];
   char* save_ptr, * token = NULL;
   uint8_t* ptr, * base = NULL;
   int pointer_size = sizeof(void*);
@@ -549,7 +553,7 @@ setup_stack (void **esp, const char *command)
           strlcpy((char*)ptr, this_arg->argument, this_arg->length);
         }
 
-        // Word Align
+        /* Word Align */
         ptr = (uint8_t*)((int)ptr & ~0x3);
 
         ptr -= pointer_size;
@@ -605,16 +609,3 @@ install_page (void *upage, void *kpage, bool writable)
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
-
-/* From command line arguments, returns filename. */
-// static void
-// return_file_name (char* file_name, const char* command)
-// {
-//   char* save_ptr;
-//   
-//   /* Copy process name to thread name */
-//   strlcpy(file_name, command, 128);
-//   /*sets file_name to the first parameter of cmdline input */
-//   strlcpy(file_name, strtok_r(file_name, " ", &save_ptr), 16);
-//   printf("file_name = %s\n", file_name);
-// }

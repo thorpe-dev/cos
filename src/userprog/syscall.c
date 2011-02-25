@@ -172,7 +172,7 @@ syscall_wait(uint32_t* eax, pid_t pid)
  syscall_return_pid_t (eax, status);
 }
 
-/* Lock filesystem, create file, unlock, return bool */
+/* Lock filesystem, create file, unlock, return bool for success*/
 static void 
 syscall_create(uint32_t* eax, const char *file, unsigned int initial_size)
 {
@@ -404,7 +404,7 @@ check_safe_ptr (const void *ptr, int no_args)
   int i;
   for(i = 0; i <= no_args; i++){
     if (!is_safe_ptr(ptr + (i * sizeof(uint32_t))))
-      process_exit();
+      thread_exit();
   }
 }
 
