@@ -180,11 +180,11 @@ static void
 syscall_create(uint32_t* eax, const char *file, unsigned int initial_size)
 {
   bool success = false;
-  
+  if (!is_safe_ptr(file)) 
+    thread_exit();
+
   lock_acquire(&filesys_lock);
-  
   success = filesys_create(file, initial_size);
-  
   lock_release(&filesys_lock);
   
   syscall_return_bool (eax, success);
@@ -195,6 +195,8 @@ static void
 syscall_remove(uint32_t* eax, const char *file)
 {
   bool success = false;
+  if (!is_safe_ptr(file)) 
+    thread_exit();
   
   lock_acquire(&filesys_lock);
   success = filesys_remove(file);
@@ -208,6 +210,9 @@ static void
 syscall_open(uint32_t* eax, const char *file_name)
 {
   struct file* file;
+  if (!is_safe_ptr(file_name)) 
+    thread_exit();
+  
   struct thread* t = thread_current();
   int fd = ++t->process->next_fd;
 
@@ -310,9 +315,7 @@ syscall_read(uint32_t* eax, int fd, void *buffer, unsigned int size)
   else 
   {
     lock_acquire(&filesys_lock);
-  
     read_size = (int) file_read(file, buffer, size);
-  
     lock_release(&filesys_lock);
   
     syscall_return_int (eax, read_size);
@@ -335,9 +338,7 @@ syscall_tell (uint32_t* eax, int fd)
   {
     /* Lock filesystem, read file position, unlock */
     lock_acquire(&filesys_lock);
-  
     position = (int) file_tell(file);
-  
     lock_release(&filesys_lock);
   
     syscall_return_uint (eax, position);
@@ -379,9 +380,7 @@ syscall_close (int fd)
   {
     /* Lock filesystem, close file, unlock */
     lock_acquire(&filesys_lock);
-  
     file_close(file);
-  
     lock_release(&filesys_lock);
   }
 
