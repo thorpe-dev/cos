@@ -32,23 +32,12 @@ struct process
   int exit_status; //Initialised to EXIT_FAILURE
   struct semaphore exit_complete; //Initialised to 0
   pid_t pid;
-  struct list children;
   struct list_elem child_elem;
-  // Members below here are only initialised upon successful thread creation
-  struct thread* thread;
-
-  struct file* process_file;
   struct list open_files;
-  int next_fd;
-};
-
-struct open_file
-{
-  struct file* file;
-  
-  int fd;
-  
-  struct list_elem elem;
+  int next_fd; // Used for generating file descriptors
+  // Members below here are only initialised upon successful thread creation
+  struct thread* thread; // The thread associated with this process
+  struct file* process_file; // The filename of the process's executable
 };
 
 

@@ -30,10 +30,8 @@ tid_t
 process_execute (const char *command)
 {
   tid_t tid;
-  struct process* current_process;
   struct process* new_process;
 
-  current_process = thread_current()->process;
   new_process = malloc(sizeof(struct process)); //TODO: free this
 
   /* Make a copy of FILE_NAME.
@@ -49,13 +47,10 @@ process_execute (const char *command)
   sema_init(&new_process->load_complete, 0);
   sema_init(&new_process->exit_complete, 0);
   new_process->pid = PID_ERROR;
-  list_init(&new_process->children);
   list_init(&new_process->open_files);
   new_process->next_fd = 2;
 
-  if(current_process != NULL) {
-    list_push_front(&current_process->children, &new_process->child_elem);
-  }
+  list_push_front(&thread_current()->children, &new_process->child_elem);
 
 
   /* Create a new thread to execute FILE_NAME. */
@@ -64,6 +59,11 @@ process_execute (const char *command)
     free(new_process->command);
     //If the thread was successfully created, start_process will free this
   }
+
+  // Wait for load to complete
+  sema_down(&new_process->load_complete);
+  sema_up(&new_process->load_complete);
+  printf("Load complete!\n");
 
   return tid;
 }
@@ -125,9 +125,22 @@ start_process (void *process_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
-  while(1); // TODO: Fix
+  struct list* children = &thread_current()->children;
+  struct list_elem* e;
+  struct process* child;
+
+  for (e = list_begin(children); e != list_end(children);
+       e = list_next (e))
+  {
+    child = list_entry(e, struct process, child_elem);
+    if(child->pid == child_tid) {
+      sema_down(&child->exit_complete);
+      //sema_up(&child->exit_complete);
+      return child->exit_status;
+    }
+  }
   return -1;
 }
 
@@ -136,18 +149,30 @@ void
 process_exit (void)
 {
   struct thread *cur = thread_current ();
-  struct open_file* open_file;
+  struct file* file;
+  struct process* child;
   struct list_elem* e;
-  
+
   uint32_t *pd;
-  
-   for (e = list_begin (&cur->process->open_files); e != list_end (&cur->process->open_files);
-      e = list_next (e)) 
-      {
-        open_file = list_entry (e, struct open_file, elem);
-        file_close (open_file->file);
-      }
-      
+
+  // Close this process's open files
+  for (e = list_begin (&cur->process->open_files); e != list_end (&cur->process->open_files);
+       e = list_next (e)) 
+  {
+    file = list_entry(e, struct file, elem);
+    file_close(file);
+  }
+
+  // Deallocate memory for this process's child process structs
+  // TODO: Finish, consider other cases
+  /*for (e = list_begin(&cur->process->children); e != list_end(&cur->process->children);
+       e = list_next(e))
+  {
+    child = list_entry(e, struct process, elem);
+    if(child->
+    free(child);
+  }*/
+
   file_close(cur->process->process_file);
 
   /* Destroy the current process's page directory and switch back
