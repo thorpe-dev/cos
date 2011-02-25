@@ -154,6 +154,8 @@ syscall_exit(int status)
 static void 
 syscall_exec(uint32_t* eax, const char *command)
 {
+  if (!is_safe_ptr(command)) 
+    thread_exit();
   syscall_return_int (eax, process_execute(command));
 }
 
@@ -165,14 +167,14 @@ syscall_wait(uint32_t* eax, pid_t pid)
 
 /* Lock filesystem, create file, unlock, return bool for success*/
 static void 
-syscall_create(uint32_t* eax, const char *file, unsigned int initial_size)
+syscall_create(uint32_t* eax, const char *filename, unsigned int initial_size)
 {
   bool success = false;
-  if (!is_safe_ptr(file)) 
+  if (!is_safe_ptr(filename)) 
     thread_exit();
 
   lock_acquire(&filesys_lock);
-  success = filesys_create(file, initial_size);
+  success = filesys_create(filename, initial_size);
   lock_release(&filesys_lock);
   
   syscall_return_bool (eax, success);

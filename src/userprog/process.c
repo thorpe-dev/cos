@@ -152,7 +152,6 @@ process_wait (tid_t child_tid)
       list_remove(e);
       exit_status = child->exit_status;
       return exit_status;
-
     }
   }
   return exit_status;
