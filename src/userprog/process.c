@@ -137,6 +137,7 @@ process_wait (tid_t child_tid)
   struct list* children = &thread_current()->children;
   struct list_elem* e;
   struct process* child;
+  int exit_status = EXIT_FAILURE;
 
   for (e = list_begin(children); e != list_end(children);
        e = list_next (e))
@@ -145,10 +146,13 @@ process_wait (tid_t child_tid)
     if(child->pid == child_tid) {
       sema_down(&child->exit_complete);
       //sema_up(&child->exit_complete);
-      return child->exit_status;
+      list_remove(e);
+      exit_status = child->exit_status;
+      return exit_status;
+
     }
   }
-  return -1;
+  return exit_status;
 }
 
 /* Free the current process's resources. */
