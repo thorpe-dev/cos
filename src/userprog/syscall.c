@@ -160,18 +160,6 @@ syscall_exec(uint32_t* eax, const char *command)
 static void 
 syscall_wait(uint32_t* eax, pid_t pid)
 {
-  //TODO: Check pid is in our list of children
-  /*int retval = EXIT_FAILURE;
-  struct list_elem* e;
-  struct list* children = thread_current()->process->children;
-  struct process* child;
-  
-  for (e = list_begin(children); e != list_end(&children);
-  e = list_next (e))
-  {
-    struct process* child = list_entry(e, struct process, child_elem);
-    ...do something with f...
-  }*/
   syscall_return_pid_t (eax, process_wait(pid));
 }
 

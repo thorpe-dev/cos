@@ -72,6 +72,9 @@ process_execute (const char *command)
   // Wait for load to complete
   sema_down(&new_process->load_complete);
   sema_up(&new_process->load_complete);
+  
+  if(!new_process->load_success)
+    return EXIT_FAILURE;
 
   return tid;
 }
@@ -317,14 +320,16 @@ load (const char* command, void (**eip) (void), void **esp)
 
   /* Open executable file and deny write access. */
   file = filesys_open(t->name);
-  t->process->process_file = file;
-  file_deny_write(file);
 
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", t->name);
       goto done; 
     }
+
+  t->process->process_file = file;
+  file_deny_write(file);
+
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
