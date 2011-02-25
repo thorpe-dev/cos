@@ -21,6 +21,7 @@
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
+//static void return_file_name (char* file_name, const char* command);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -32,6 +33,9 @@ process_execute (const char *command)
   tid_t tid;
   struct process* current_process;
   struct process* new_process;
+  
+  char* save_ptr;
+  char* file_name = malloc(strlen(command) + 1);
 
   current_process = thread_current()->process;
   new_process = malloc(sizeof(struct process)); //TODO: free this
@@ -56,14 +60,20 @@ process_execute (const char *command)
   if(current_process != NULL) {
     list_push_front(&current_process->children, &new_process->child_elem);
   }
-
-
+  
+  /* Returns just the filename of the command to execute */
+  strlcpy(file_name, command, strlen(command)+1);
+  strtok_r(file_name, " ", &save_ptr);
+  
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (command, PRI_DEFAULT, start_process, new_process);
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, new_process);
   if (tid == TID_ERROR) {
     free(new_process->command);
     //If the thread was successfully created, start_process will free this
   }
+  
+  /* Free file_name, as it is no longer used*/
+  free(file_name);
 
   return tid;
 }
@@ -76,10 +86,10 @@ start_process (void *process_)
   struct process* process = process_;
   struct thread* thread = thread_current();
   struct intr_frame if_;
-  bool success;
+  bool success = false;
 
-  thread->process = process; // Set current thread's process descriptor to 
-                             // the one passed to us
+  /* Set current thread's process descriptor to the one passed to us */
+  thread->process = process;
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -88,18 +98,17 @@ start_process (void *process_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (process->command, &if_.eip, &if_.esp);
   
-  /* Copy process name to thread name */
+  /*Free space allocated by process_execute */
+  free(process->command);
   
-  free(process->command); //Free space allocated by process_execute
-  //TODO: Chop off command arguments
-  process->command = thread->name; // We don't really need this any more,
-                                    // but it might as well point to something
-                                    // that makes sense
-  process->pid = thread->tid; //pid is the same as the tid
+  /* Process information is same as thread information */
+  process->command = thread->name;
+  process->pid = thread->tid;
   process->thread = thread;
   process->load_success = success;
 
-  sema_up(&process->load_complete);  // Signal load complete
+  /* Signal load complete */
+  sema_up(&process->load_complete);
 
   /* If load failed, quit. */
   if (!success)
@@ -148,6 +157,7 @@ process_exit (void)
         file_close (open_file->file);
       }
       
+      
   file_close(cur->process->process_file);
 
   /* Destroy the current process's page directory and switch back
@@ -166,6 +176,9 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+    
+  sema_up(&cur->process->exit_complete);
+  
 }
 
 /* Sets up the CPU for running user code in the current
@@ -261,21 +274,15 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 bool
 load (const char* command, void (**eip) (void), void **esp) 
 {
-  struct thread *t = thread_current ();
+  struct thread* t = thread_current ();
   struct Elf32_Ehdr ehdr;
-  struct file *file = NULL;
+  struct file* file = NULL;
   off_t file_ofs;
   bool success = false;
   int i;
+  //char file_name[16] = "";
   
-  char file_name[128];
-  char *save_ptr = NULL;
-  
-  strlcpy(file_name, command, 128);
-  
-  //sets file_name to the first parameter of cmdline input
-  strlcpy(file_name, strtok_r(file_name, " ", &save_ptr), 128); 
-  
+  //return_file_name(file_name, command);
 
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
@@ -284,13 +291,13 @@ load (const char* command, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file and deny write access. */
-  file = filesys_open(file_name);
+  file = filesys_open(t->name);
   t->process->process_file = file;
   file_deny_write(file);
 
   if (file == NULL) 
     {
-      printf ("load: %s: open failed\n", file_name);
+      printf ("load: %s: open failed\n", t->name);
       goto done; 
     }
 
@@ -303,7 +310,7 @@ load (const char* command, void (**eip) (void), void **esp)
       || ehdr.e_phentsize != sizeof (struct Elf32_Phdr)
       || ehdr.e_phnum > 1024) 
     {
-      printf ("load: %s: error loading executable\n", file_name);
+      printf ("load: %s: error loading executable\n", t->name);
       goto done; 
     }
 
@@ -598,3 +605,16 @@ install_page (void *upage, void *kpage, bool writable)
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
+
+/* From command line arguments, returns filename. */
+// static void
+// return_file_name (char* file_name, const char* command)
+// {
+//   char* save_ptr;
+//   
+//   /* Copy process name to thread name */
+//   strlcpy(file_name, command, 128);
+//   /*sets file_name to the first parameter of cmdline input */
+//   strlcpy(file_name, strtok_r(file_name, " ", &save_ptr), 16);
+//   printf("file_name = %s\n", file_name);
+// }

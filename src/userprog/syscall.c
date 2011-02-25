@@ -126,7 +126,6 @@ syscall_handler (struct intr_frame *f)
       break;
       
     case SYS_CLOSE: 
-      printf("esp = %X\n", esp);
       check_safe_ptr (esp, 1);
       syscall_close(*(int*)argument_1); 
       break;
@@ -147,25 +146,29 @@ syscall_halt(void)
 static void
 syscall_exit(int status) 
 {
-  printf("Exiting with status %d\n", status);
-  // TODO: handle exit status
+  struct thread* t = thread_current();
+  t->process->exit_status = status;
   
-  printf("thread_exit\n");
+  printf ("%s: exit(%d)\n",t->name, status);
   thread_exit();
+  NOT_REACHED ();
 }
 
 static void 
 syscall_exec(uint32_t* eax, const char *command)
 {
   struct process* p;
-  process_execute(command);
-  // New process is at the head of the list of this process's children
-  p = list_entry(list_front(&(thread_current()->process->children)), struct process, child_elem);
-
+  pid_t pid = -1;
+  pid = process_execute(command);
+  /* New process is at the head of the list of this process's children */
+  p = list_entry(list_front(&(thread_current()->process->children)), 
+                 struct process, child_elem);
+                 
+  /*Ensures that the process has finished loading before returning the pid*/
   sema_down(&p->load_complete);
   sema_up(&p->load_complete);
 
-  syscall_return_int (eax, p->pid);
+  syscall_return_pid_t (eax, pid);
 }
 
 static void 
@@ -176,6 +179,7 @@ syscall_wait(uint32_t* eax, pid_t pid)
  syscall_return_pid_t (eax, status);
 }
 
+/* Lock filesystem, create file, unlock, return bool */
 static void 
 syscall_create(uint32_t* eax, const char *file, unsigned int initial_size)
 {
