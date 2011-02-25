@@ -269,12 +269,8 @@ is_safe_ptr(const void* vaddr)
 {
   uint32_t *ptr;
   
-  /*Check pointer not NULL*/
-  if(vaddr == NULL)
-    return false;
-
-  /*Check pointer not kernel address*/
-  if (!is_user_vaddr (vaddr))
+  /*Check pointer not NULL and its not pointing to a kernel address*/
+  if(vaddr == NULL || !is_user_vaddr (vaddr))
     return false;
 
   /*Check pointer points to mapped space -UNSURE ABOUT THIS*/

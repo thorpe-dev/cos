@@ -83,38 +83,66 @@ A second advantage is that in Unix less work is done in kernel space, since spli
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
-
+User programs' threads belong to processes now, which have their own struct as below.
 struct process
 {
-  char* command; 
-  bool load_success; 
-  struct semaphore load_complete; 
-  int exit_status; 
-  struct semaphore exit_complete; 
+  char* command;
+  bool load_success;
+  struct semaphore load_complete;
+  int exit_status;
+  struct semaphore exit_complete;
   pid_t pid;
-
-
-
-  struct list children;
   struct list_elem child_elem;
-  struct thread* thread;
-  struct file* process_file;
   struct list open_files;
   int next_fd;
+
+  struct thread* thread; 
+  struct file* process_file; 
 };
 
+
+User program threads now have a pointer to the process they belong to and a list of their children processes.
+struct thread
+{
+...
+#ifdef USERPROG
+    struct process* process;
+    struct list children;
+#endif
+...
+};
+
+
+Files now have an associated fd and are in file.h so that processes can access them and add them to the open_files list with the new list_elem.
+struct file 
+{
+...         
+  int fd;
+  struct list_elem elem;
+};
 
 
 >> B2: Describe how file descriptors are associated with open files.
 >> Are file descriptors unique within the entire OS or just within a
 >> single process?
 
-Each process has an associated list of open files beginning with the file descriptor 2 (as 1 is reserved for console writes), which gets a new file descriptor struct (?) added to it each time a syscall_open is called, with its fd as the process->next_fd which is then incremented itself. Therefore there is no universal list of open files with the same fd for each file, but rather individual open files lists for each process. ???
+Each process has an associated list of open files beginning with the file descriptor 2 (as 1 is reserved for console writes), which gets a new struct file added to it each time a syscall_open is called, with its fd as the process->next_fd which is then incremented itself. Therefore there is no universal list of open files with the same fd for each file, but rather individual open files lists for each process.
 
 ---- ALGORITHMS ----
 
 >> B3: Describe your code for reading and writing user data from the
 >> kernel.
+
+syscall_read:
+syscall_read() simply checks the pointer safety of the buffer (by first checking if buffer is safe, then if buffer + size is safe, assuming that all the addresses in between the start and the end of the buffer will be safe too), it then gets the corresponding file from the file descriptor number passed in and checks whether this is NULL.
+
+If its NULL it returns a -1 error status to the threads' eax, otherwise it will acquire the filesystem lock, read from the file then release the lock, returning the number of bytes read.
+
+syscall_write:
+syscall_write() once again checks the pointer safety of the buffer. It then checks whether the file descriptor is 1, if so it will try writing to console MAXCHAR bytes at a time where MAXCHAR is defined as 512 bytes.
+
+Othwerise it gets the corresponding file from the file descriptor passed in and checks whether this is NULL. If its NULL it returns a -1 error status like in syscall_read() otherwise, it acquires the filesystem lock, writes to the file then releases the locks and returns the number of bytes written, once again like in syscall_read().
+
 
 >> B4: Suppose a system call causes a full page (4,096 bytes) of data
 >> to be copied from user space into the kernel.  What is the least
@@ -123,8 +151,14 @@ Each process has an associated list of open files beginning with the file descri
 >> for a system call that only copies 2 bytes of data?  Is there room
 >> for improvement in these numbers, and how much?
 
+?
+
 >> B5: Briefly describe your implementation of the "wait" system call
 >> and how it interacts with process termination.
+
+syscall_wait() calls process_wait() on the process given.
+
+process_wait() iterates through the list of child processes in order to find the tid_t of the child which matches the one handed in. When it finds the correct child, it performs a sema_down() on the child in order to wait for it to exit. When it 
 
 >> B6: Any access to user program memory at a user-specified address
 >> can fail due to a bad pointer value.  Such accesses must cause the

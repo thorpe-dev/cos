@@ -227,14 +227,14 @@ syscall_write(uint32_t* eax, int fd, const void *buffer, unsigned int size)
 {
   check_buffer_safety(buffer, size);
   
-  int i;
+  int write_size;
   struct file* file;
   
   /* Writes to console, in blocks < maxchar */
   if (fd == 1) {
-    for (i = size; i > 0; i -= MAXCHAR) {
-      if (i < MAXCHAR)
-        putbuf((char*)buffer, i);
+    for (write_size = size; write_size > 0; write_size -= MAXCHAR) {
+      if (write_size < MAXCHAR)
+        putbuf((char*)buffer, write_size);
 
       else {
         putbuf((char*)buffer, MAXCHAR);
@@ -255,9 +255,9 @@ syscall_write(uint32_t* eax, int fd, const void *buffer, unsigned int size)
       
       /* Lock filesystem, write to file, unlock */
       lock_acquire(&filesys_lock);
-      i = (int)file_write(file, buffer, size);
+      write_size = (int)file_write(file, buffer, size);
       lock_release(&filesys_lock);
-      syscall_return_int(eax, i);
+      syscall_return_int(eax, write_size);
     }
   }
 }
