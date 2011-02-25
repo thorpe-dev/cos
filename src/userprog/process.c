@@ -64,8 +64,8 @@ process_execute (const char *command)
     /* If the thread was successfully created, start_process will free this */
     free(new_process->command);
   }
-  
-  /* Free file_name, as it is no longer used*/
+
+  /* Free file_name, as it is no longer used */
   free(file_name);
 
   // Wait for load to complete
@@ -146,10 +146,10 @@ process_wait (tid_t child_tid)
   {
     child = list_entry(e, struct process, child_elem);
     if(child->pid == child_tid) {
-      sema_down(&child->exit_complete);
-      //sema_up(&child->exit_complete);
-      list_remove(e);
+      sema_down(&child->exit_complete); // Wait for child to exit
       exit_status = child->exit_status;
+      list_remove(e); // Remove from our list of children
+      free(child); // Free child process struct
       return exit_status;
     }
   }
@@ -179,16 +179,16 @@ process_exit (void)
     file_close(file);
   }
 
-  // Deallocate memory for this process's child process structs
-  // TODO: Finish, consider other cases
-  /*for (e = list_begin(&cur->process->children); e != list_end(&cur->process->children);
-       e = list_next(e))
+  /* Wait for our children to die and free their memory - process_wait frees 
+     the memory for the children's process structs */
+  e = list_begin(&cur->children);
+  while(e != list_end(&cur->children))
   {
-    child = list_entry(e, struct process, elem);
-    if(child->
-    free(child);
-  }*/
-  
+    child = list_entry(e, struct process, child_elem);
+    e = list_next(e);
+    process_wait(child->pid);
+  }
+
   file_close(cur->process->process_file);
 
   /* Destroy the current process's page directory and switch back
