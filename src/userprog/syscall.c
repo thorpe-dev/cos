@@ -15,26 +15,27 @@
 
 static void syscall_handler (struct intr_frame *);
 
-static void syscall_halt(void);
-static void syscall_exit(int status);
-static void syscall_exec(uint32_t* eax, const char *command);
-static void syscall_wait(uint32_t* eax, pid_t pid);
-static void syscall_create(uint32_t* eax, const char *file, unsigned initial_size);
-static void syscall_remove(uint32_t* eax, const char *file);
-static void syscall_open(uint32_t* eax, const char *file_name);
+static void syscall_halt  (void);
+static void syscall_exit  (int status);
+static void syscall_exec  (uint32_t* eax, const char* command);
+static void syscall_wait  (uint32_t* eax, pid_t pid);
+static void syscall_create(uint32_t* eax, const char* file, unsigned initial_size);
+static void syscall_remove(uint32_t* eax, const char* file);
+static void syscall_open  (uint32_t* eax, const char* file_name);
 static void syscall_filesize(uint32_t* eax, int fd);
-static void syscall_read(uint32_t* eax, int fd, void *buffer, unsigned int size);
-static void syscall_write(uint32_t* eax, int fd, const void *buffer, unsigned size);
-static void syscall_seek(int fd, unsigned int position);
-static void syscall_tell(uint32_t* eax, int fd);
+static void syscall_read  (uint32_t* eax, int fd, void* buffer, unsigned int size);
+static void syscall_write (uint32_t* eax, int fd, const void* buffer, unsigned size);
+static void syscall_seek  (int fd, unsigned int position);
+static void syscall_tell  (uint32_t* eax, int fd);
 static void syscall_close (int fd);
 
-static void check_safe_ptr (const void *ptr, int no_args);
+static void check_safe_ptr (const void* ptr, int no_args);
+static void check_buffer_safety (const void* buffer, int size);
 
-static void syscall_return_int (uint32_t* eax, const int value);
-static void syscall_return_pid_t (uint32_t* eax, const pid_t value);
-static void syscall_return_bool (uint32_t* eax, const bool value);
-static void syscall_return_uint (uint32_t* eax, const unsigned value);
+static void syscall_return_int    (uint32_t* eax, const int value);
+static void syscall_return_pid_t  (uint32_t* eax, const pid_t value);
+static void syscall_return_bool   (uint32_t* eax, const bool value);
+static void syscall_return_uint   (uint32_t* eax, const unsigned value);
 
 static struct file* find_file (int fd);
 
@@ -227,6 +228,8 @@ syscall_open(uint32_t* eax, const char *file_name)
 static void
 syscall_write(uint32_t* eax, int fd, const void *buffer, unsigned int size)
 {
+  check_buffer_safety(buffer, size);
+  
   int i;
   struct file* file;
   
@@ -288,6 +291,9 @@ syscall_filesize(uint32_t* eax, int fd)
 static void 
 syscall_read(uint32_t* eax, int fd, void *buffer, unsigned int size)
 {
+  
+  check_buffer_safety(buffer, size);
+  
   int read_size;
   struct file* file;
   
@@ -432,4 +438,14 @@ find_file(int fd)
         return file; 
     }
   return NULL;
+}
+
+/* Checks that both ends of the buffer are in */
+static void 
+check_buffer_safety (const void* buffer, int size)
+{
+  if ( !is_safe_ptr(buffer) || !is_safe_ptr(buffer + size))
+    thread_exit();
+  else
+    return;
 }
