@@ -345,8 +345,7 @@ syscall_seek (int fd, unsigned position)
   /* If fd is incorrect, exit */
   if (file == NULL)
     return;
-  
-  
+
   else
   {
     /* Lock filesystem, seek to position in file, unlock */
