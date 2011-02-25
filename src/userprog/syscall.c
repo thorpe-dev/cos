@@ -50,9 +50,12 @@ static void
 syscall_handler (struct intr_frame *f) 
 {
   
-  uint32_t* esp = (f->esp);
-  uint32_t* eax = &(f->eax);
-  unsigned int call_number = *esp;
+  uint32_t* esp = f->esp;
+  uint32_t* eax = &f->eax;
+  unsigned int call_number = 0xDEADBEEF;
+  
+  check_safe_ptr(esp, 0);
+  call_number = *esp;
 
   void* argument_1 = (void*)(esp + 1);
   void* argument_2 = (void*)(esp + 2);
