@@ -35,7 +35,7 @@ process_execute (const char *command)
   char* save_ptr;
   char* file_name = malloc(strlen(command) + 1);
 
-  new_process = malloc(sizeof(struct process)); //TODO: free this
+  new_process = malloc(sizeof(struct process));
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -44,7 +44,7 @@ process_execute (const char *command)
     return TID_ERROR;
   strlcpy (new_process->command, command, strlen(command)+1);
 
-  
+  /* Initialise the new processes fields */
   new_process->load_success = false;
   new_process->exit_status = EXIT_FAILURE;
   sema_init(&new_process->load_complete, 0);
@@ -53,11 +53,13 @@ process_execute (const char *command)
   list_init(&new_process->open_files);
   new_process->next_fd = 2;
 
+  /* Push this new process into the current(parent) process list of children */
   list_push_front(&thread_current()->children, &new_process->child_elem);
   
   /* Returns just the filename of the command to execute */
   strlcpy(file_name, command, strlen(command)+1);
   strtok_r(file_name, " ", &save_ptr);
+  
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, new_process);
   if (tid == TID_ERROR) {
@@ -68,10 +70,11 @@ process_execute (const char *command)
   /* Free file_name, as it is no longer used */
   free(file_name);
 
-  // Wait for load to complete
+  /* Wait for load to complete  */
   sema_down(&new_process->load_complete);
   sema_up(&new_process->load_complete);
   
+  /* Check that the process has loaded successfully*/
   if(!new_process->load_success)
     return EXIT_FAILURE;
 

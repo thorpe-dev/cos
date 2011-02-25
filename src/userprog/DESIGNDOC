@@ -158,7 +158,9 @@ Othwerise it gets the corresponding file from the file descriptor passed in and 
 
 syscall_wait() calls process_wait() on the process given.
 
-process_wait() iterates through the list of child processes in order to find the tid_t of the child which matches the one handed in. When it finds the correct child, it performs a sema_down() on the child in order to wait for it to exit. When it 
+process_wait() iterates through the list of child processes in order to find the tid_t of the child which matches the one handed in. When it finds the correct child, it performs a sema_down() on the childs exit_complete semaphore struct in order to wait for it to exit. When the child exits, it will itself perform a sema_up() on its own exit_complete signalling to the parent process to continue with the method.
+
+The parent process will then proceed to remove the child from its list of children and free up its childs memory. Finally it returns from this function with the child's exit_status.
 
 >> B6: Any access to user program memory at a user-specified address
 >> can fail due to a bad pointer value.  Such accesses must cause the
@@ -188,6 +190,13 @@ To ensure that allocated resources are freed, if the is_safe_ptr() returns false
 >> loading.  How does your code ensure this?  How is the load
 >> success/failure status passed back to the thread that calls "exec"?
 
+syscall_exec() calls process_execute(), which after initialising the process performs a sema_down() on its load_complete semaphore which returns only returns once the load is complete, ensuring that it cannot return before the new process has finished loading.
+
+It then performs a sema_up() (why????)
+
+A check is then performed to ensure that the new processes load has actually returned correctly, if not the function returns with the EXIT_FAILURE status to the thread which called syscall_exec().
+
+
 >> B8: Consider parent process P with child process C.  How do you
 >> ensure proper synchronization and avoid race conditions when P
 >> calls wait(C) before C exits?  After C exits?  How do you ensure
@@ -195,10 +204,14 @@ To ensure that allocated resources are freed, if the is_safe_ptr() returns false
 >> terminates without waiting, before C exits?  After C exits?  Are
 >> there any special cases?
 
+?
+
 ---- RATIONALE ----
 
 >> B9: Why did you choose to implement access to user memory from the
 >> kernel in the way that you did?
+
+Before every time we dereference a pointer to user memory we check its safe then just dereference it, accessing all user memory from addresses returned from the interrupt_frame ???
 
 >> B10: What advantages or disadvantages can you see to your design
 >> for file descriptors?
@@ -210,7 +223,7 @@ However, there is an advantage to this method as its easier to just allocate an 
 >> B11: The default tid_t to pid_t mapping is the identity mapping.
 >> If you changed it, what advantages are there to your approach?
 
-Did we change this ????
+We used the default identity mapping, as we believed it to be neat and easy to implement since in Pintos each user process has only one thread.
 
                SURVEY QUESTIONS
                ================
