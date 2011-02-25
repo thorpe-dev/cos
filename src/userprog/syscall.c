@@ -143,7 +143,7 @@ syscall_exit(int status)
   struct thread* t = thread_current();
   t->process->exit_status = status;
   
-  printf ("%s: exit(%d)\n",t->name, status);
+  //printf ("%s: exit(%d)\n",t->name, status);
   thread_exit();
   NOT_REACHED ();
 }
@@ -390,6 +390,7 @@ check_safe_ptr (const void *ptr, int no_args)
 {
   int i;
   for(i = 0; i <= no_args; i++){
+    printf("entering for loop, i = %d\n", i);
     if (!is_safe_ptr(ptr + (i * sizeof(uint32_t))))
       thread_exit();
   }

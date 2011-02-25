@@ -159,6 +159,8 @@ process_exit (void)
   struct file* file;
   struct process* child;
   struct list_elem* e;
+  
+  printf ("%s: exit(%d)\n",t->name, cur->process->exit_status);
 
   uint32_t *pd;
 
