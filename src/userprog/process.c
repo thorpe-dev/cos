@@ -167,12 +167,14 @@ process_exit (void)
   printf ("%s: exit(%d)\n",cur->name, cur->process->exit_status);
 
   uint32_t *pd;
+  
+  e = list_begin (&cur->process->open_files);
 
-  // Close this process's open files
-  for (e = list_begin (&cur->process->open_files); e != list_end (&cur->process->open_files);
-       e = list_next (e)) 
+  /* Closes this process's open files */
+  while ( e != list_end (&cur->process->open_files))
   {
     file = list_entry(e, struct file, elem);
+    e = list_next (e);
     file_close(file);
   }
 
@@ -185,7 +187,7 @@ process_exit (void)
     if(child->
     free(child);
   }*/
-
+  
   file_close(cur->process->process_file);
 
   /* Destroy the current process's page directory and switch back

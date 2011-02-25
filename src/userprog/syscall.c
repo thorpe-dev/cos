@@ -214,7 +214,7 @@ syscall_open(uint32_t* eax, const char *file_name)
     thread_exit();
   
   struct thread* t = thread_current();
-  int fd = ++t->process->next_fd;
+  int fd = t->process->next_fd++;
 
   /* Lock filesystem, open file, unlock */
   lock_acquire(&filesys_lock);
@@ -380,8 +380,11 @@ syscall_close (int fd)
   {
     /* Lock filesystem, close file, unlock */
     lock_acquire(&filesys_lock);
+    printf("File fd %d being closed\n", fd);
+    list_remove(&file->elem);
     file_close(file);
     lock_release(&filesys_lock);
+    
   }
 
 }
@@ -392,7 +395,6 @@ check_safe_ptr (const void *ptr, int no_args)
 {
   int i;
   for(i = 0; i <= no_args; i++){
-    //printf("entering for loop, i = %d\n", i);
     if (!is_safe_ptr(ptr + (i * sizeof(uint32_t))))
       thread_exit();
   }
