@@ -469,8 +469,13 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   #ifdef USERPROG
+<<<<<<< HEAD
+  t->process = NULL; //We have no process yet - gets set in start_process
+  list_init(&t->children);
+=======
   /* We have no process yet - gets set in start_process */
   t->process = NULL;
+>>>>>>> 01c73d3cac3da5b12bb7da6721cd9ad09251b197
   #endif
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
@@ -585,7 +590,7 @@ allocate_tid (void)
 
   return tid;
 }
-
+
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);

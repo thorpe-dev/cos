@@ -37,7 +37,7 @@ static void syscall_return_pid_t  (uint32_t* eax, const pid_t value);
 static void syscall_return_bool   (uint32_t* eax, const bool value);
 static void syscall_return_uint   (uint32_t* eax, const unsigned value);
 
-static struct open_file* get_file_fd (int fd);
+static struct file* find_file (int fd);
 
 
 void
@@ -151,26 +151,25 @@ syscall_exit(int status)
 static void 
 syscall_exec(uint32_t* eax, const char *command)
 {
-  struct process* p;
-  pid_t pid = -1;
-  pid = process_execute(command);
-  /* New process is at the head of the list of this process's children */
-  p = list_entry(list_front(&(thread_current()->process->children)), 
-                 struct process, child_elem);
-                 
-  /*Ensures that the process has finished loading before returning the pid*/
-  sema_down(&p->load_complete);
-  sema_up(&p->load_complete);
-
-  syscall_return_pid_t (eax, pid);
+  syscall_return_int (eax, process_execute(command));
 }
 
 static void 
 syscall_wait(uint32_t* eax, pid_t pid)
 {
- /* ? */
- int status = -1;
- syscall_return_pid_t (eax, status);
+  //TODO: Check pid is in our list of children
+  /*int retval = EXIT_FAILURE;
+  struct list_elem* e;
+  struct list* children = thread_current()->process->children;
+  struct process* child;
+  
+  for (e = list_begin(children); e != list_end(&children);
+  e = list_next (e))
+  {
+    struct process* child = list_entry(e, struct process, child_elem);
+    ...do something with f...
+  }*/
+  syscall_return_pid_t (eax, process_wait(pid));
 }
 
 /* Lock filesystem, create file, unlock, return bool for success*/
@@ -205,39 +204,23 @@ syscall_remove(uint32_t* eax, const char *file)
 static void 
 syscall_open(uint32_t* eax, const char *file_name)
 {
-  struct file* file_ptr;
+  struct file* file;
   struct thread* t = thread_current();
-  struct open_file* open_file;
-  
-  int fd = t->process->next_fd;
-  
+  int fd = ++t->process->next_fd;
+
   /* Lock filesystem, open file, unlock */
   lock_acquire(&filesys_lock);
-  file_ptr = filesys_open(file_name);
+  file = filesys_open(file_name);
   lock_release(&filesys_lock);
-  
 
   /* If file not found, set eax to -1*/
-  if (file_ptr == NULL) 
-  {
+  if (file == NULL) 
     syscall_return_int(eax, -1);
-  }
   else {
     /* Adds file to process' open_files list and returns fd */
-    open_file = malloc(sizeof(struct open_file));
-    if (open_file == NULL)
-      syscall_return_int(eax, -1);
-    else 
-    {
-      open_file->file = file_ptr;
-      open_file->fd = fd;
-      
-      t->process->next_fd++;
-      
-      list_push_back(&t->process->open_files, &open_file->elem);
-      
+      file->fd = fd;
+      list_push_back(&t->process->open_files, &file->elem);
       syscall_return_int (eax, fd);
-    }
   }
 }
 
@@ -248,7 +231,7 @@ syscall_write(uint32_t* eax, int fd, const void *buffer, unsigned int size)
   check_buffer_safety(buffer, size);
   
   int i;
-  struct open_file* open_file;
+  struct file* file;
   
   /* Writes to console, in blocks < maxchar */
   if (fd == 1) {
@@ -265,19 +248,19 @@ syscall_write(uint32_t* eax, int fd, const void *buffer, unsigned int size)
   }
   /* Write to file fd.*/
   else {
-    open_file = get_file_fd ( fd );
+    file = find_file(fd);
     
     /* If fd is incorrect, return -1 */
-    if (open_file == NULL)
+    if (file == NULL)
       syscall_return_int(eax, -1);
     
     else {
       
       /* Lock filesystem, write to file, unlock */
-      lock_acquire (&filesys_lock);
-      i = (int)file_write (open_file->file, buffer, size);
-      lock_release (&filesys_lock);
-      syscall_return_int(eax,i);
+      lock_acquire(&filesys_lock);
+      i = (int)file_write(file, buffer, size);
+      lock_release(&filesys_lock);
+      syscall_return_int(eax, i);
     }
   }
 }
@@ -287,22 +270,20 @@ static void
 syscall_filesize(uint32_t* eax, int fd) 
 {
   int size;
-  struct open_file* open_file;
+  struct file* file;
   
-  open_file = get_file_fd ( fd );
+  file = find_file ( fd );
   
   lock_acquire(&filesys_lock);
   
   /* If fd is incorrect, return -1 */
-  if (open_file == NULL)
+  if (file == NULL)
     syscall_return_int(eax, -1);
   
   else 
   {
-    size = (int) file_length(open_file->file);
-  
+    size = (int) file_length(file);
     lock_release(&filesys_lock);
-  
     syscall_return_int (eax, size);
   }
 }
@@ -314,12 +295,12 @@ syscall_read(uint32_t* eax, int fd, void *buffer, unsigned int size)
   check_buffer_safety(buffer, size);
   
   int read_size;
-  struct open_file* open_file;
+  struct file* file;
   
-  open_file = get_file_fd ( fd );
+  file = find_file ( fd );
   
   /* If fd is incorrect, return -1 */
-  if (open_file == NULL)
+  if (file == NULL)
     syscall_return_int(eax, -1);
   
   /* Lock filesystem, read file, unlock */
@@ -327,7 +308,7 @@ syscall_read(uint32_t* eax, int fd, void *buffer, unsigned int size)
   {
     lock_acquire(&filesys_lock);
   
-    read_size = (int) file_read(open_file->file, buffer, size);
+    read_size = (int) file_read(file, buffer, size);
   
     lock_release(&filesys_lock);
   
@@ -339,12 +320,12 @@ static void
 syscall_tell (uint32_t* eax, int fd) 
 {
   int position;
-  struct open_file* open_file;
+  struct file* file;
   
-  open_file = get_file_fd ( fd );
+  file = find_file ( fd );
   
   /* If fd is incorrect, return -1 */
-  if (open_file == NULL)
+  if (file == NULL)
     syscall_return_uint (eax, -1);
   
   else 
@@ -352,7 +333,7 @@ syscall_tell (uint32_t* eax, int fd)
     /* Lock filesystem, read file position, unlock */
     lock_acquire(&filesys_lock);
   
-    position = (int) file_tell(open_file->file);
+    position = (int) file_tell(file);
   
     lock_release(&filesys_lock);
   
@@ -363,12 +344,12 @@ syscall_tell (uint32_t* eax, int fd)
 static void 
 syscall_seek (int fd, unsigned position) 
 {
-  struct open_file* open_file;
+  struct file* file;
   
-  open_file = get_file_fd ( fd );
+  file = find_file ( fd );
   
   /* If fd is incorrect, exit */
-  if (open_file == NULL)
+  if (file == NULL)
     return;
   
   
@@ -376,7 +357,7 @@ syscall_seek (int fd, unsigned position)
   {
     /* Lock filesystem, seek to position in file, unlock */
     lock_acquire(&filesys_lock);
-    file_seek(open_file->file, (off_t)position);
+    file_seek(file, (off_t)position);
     lock_release(&filesys_lock);
   }
 }
@@ -384,11 +365,11 @@ syscall_seek (int fd, unsigned position)
 static void 
 syscall_close (int fd) 
 {
-  struct open_file* open_file;
+  struct file* file;
   
-  open_file = get_file_fd (fd);
+  file = find_file (fd);
   /* If fd is incorrect, exit */
-  if (open_file == NULL)
+  if (file == NULL)
     return;
   
   else
@@ -396,7 +377,7 @@ syscall_close (int fd)
     /* Lock filesystem, close file, unlock */
     lock_acquire(&filesys_lock);
   
-    file_close(open_file->file);
+    file_close(file);
   
     lock_release(&filesys_lock);
   }
@@ -440,20 +421,21 @@ syscall_return_uint (uint32_t* eax, const unsigned value)
   *eax = value;
 }
 
-static struct open_file*
-get_file_fd (int fd)
+/* Returns the file associated with the given file descriptor */
+static struct file*
+find_file(int fd)
 {
   struct thread* t;
   struct list_elem* e;
-  struct open_file* open_file;
+  struct file* file;
  
-  t = thread_current ();
+  t = thread_current();
   for (e = list_begin (&t->process->open_files); e != list_end (&t->process->open_files);
      e = list_next (e)) 
     {
-      open_file = list_entry (e, struct open_file, elem);
-      if ( open_file->fd == fd )
-        return open_file; 
+      file = list_entry (e, struct file, elem);
+      if(file->fd == fd)
+        return file; 
     }
   return NULL;
 }

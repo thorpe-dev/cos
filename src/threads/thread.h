@@ -101,7 +101,7 @@ struct thread
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
     struct process* process;            /* This thread's associated process */
-    
+    struct list children;               /* This thread's child _processes_ */
 #endif
 
     /* Owned by thread.c. */
@@ -144,5 +144,7 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+struct thread* find_thread(tid_t tid);
 
 #endif /* threads/thread.h */
