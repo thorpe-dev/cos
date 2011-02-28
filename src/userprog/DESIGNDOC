@@ -142,13 +142,11 @@ syscall_write() once again checks the pointer safety of the buffer. It then chec
 >> for a system call that only copies 2 bytes of data?  Is there room
 >> for improvement in these numbers, and how much?
 
-<<<<<<< HEAD
+Checking pointer safety is the only time a page lookup is performed so we are judging the number of inspections of the page table through the number of is_safe_ptr() calls when performing syscall_write() with a full page of data and with only 2 bytes of data. Initially both will perform 1 check initially that the esp is safe, then 3 checks will be performed that the argument pointers are safe, finally 2 more checks that the buffers initial pointer and a pointer to the last character (ie. buffer + size) in the buffer are safe. So both will perform 6 checks before the number of characters being copied is even taken into account.
 
-=======
-With a full page:       1 3 2 1
+Now in check_buffer_safety() one extra check for the full page will be done at an interval of buffer + PGSIZE in the for loop which loops size/PGSIZE times. This is because it may be the case that although the initial address of the buffer and the last are mapped the pages in between may not be (although we know that buffer + size will be equivalent to buffer + PGSIZE in this specific example and therefore if that check did not fail then neither will this one and it will be a pointless extra check). On the other hand the buffer with size = 2 bytes of data will not do this check as size/PGSIZE will return 0, so the loop will never be entered.
 
-With a 2 bytes page:    1 3 2 0 
->>>>>>> 67f2e534bc696b5e4badd532abca067125b86476
+The first 6 checks cannot be avoided because it is important to check that all these addresses are valid. The fact that even though the size of the buffer has increased by a whole page yet only one extra inspection is needed would indicate that this is a pretty good way of solving the problem and we would say there is not that much room for improvement as if did not take into account the possibility of space in the buffer not being mapped then it would not be a very safe implementation, yet as only 1 inspection is required per 4K bytes this is fairly optimal.
 
 >> B5: Briefly describe your implementation of the "wait" system call
 >> and how it interacts with process termination.
@@ -173,18 +171,18 @@ The parent process will then proceed to remove the child from its list of childr
 >> paragraphs, describe the strategy or strategies you adopted for
 >> managing these issues.  Give an example.
 
-In order to not obscure the primary function of system call code, pointers are checked if they are safe through the check_safe_ptr() function call in the syscall_handler() before an individual syscall is even called.  The check_safe_ptr() function takes the interrupt_frame esp and checks the number of args the syscall will require are valid through using in a loop stopping at i > number of args. 
+In order to not obscure the primary function of system call code, pointers are checked if they are safe through the check_safe_ptr() function call in the syscall_handler() before an individual syscall is even called.  The check_safe_ptr() function takes the interrupt_frame esp and checks the number of args the syscall will require are valid through using in a loop stopping at i >= number of args. 
 
 For each pointer check_safe_ptr() will call is_safe_ptr() which has been written in pagedir.c and as the spec suggests checks that the pointer passed in is not NULL, over PHYSBASE or pointing to memory which has not been allocated yet.
 
 To ensure that allocated resources are freed, if the is_safe_ptr() returns false, then the process is killed with thread_exit() which then frees up all the resources used and closes all the open files (as thread_exit() also calls process_exit() which does this).
 
-For those syscalls which use a buffer such as syscall_write(), we have written a function called check_buffer_safety() which is called at the start of these syscalls. This method checks firstly that the buffer pointer is safe then that the last place which the pointer can point too is safe ie. buffer + size. If this fails it will then call thread_exit(). However, it also checks if a buffer is large enough that at each interval of PGSIZE this pointer is safe as it may be pointing to a page which is not allocated in memory, as virtual memory allocation is not continuous. ?
+For those syscalls which use a buffer such as syscall_write(), we have written a function called check_buffer_safety() which is called at the start of these syscalls. This method checks firstly that the buffer pointer is safe then that the last place which the pointer can point too is safe ie. buffer + size. If this fails it will then call thread_exit(). However, it also checks if a buffer is large enough that at each interval of PGSIZE this pointer is safe as it may be pointing to a page which is not allocated in memory, as virtual memory allocation is not continuous.
 
 
 An example would be a standard call from a thread to write to a file or to the console:
 
-First of all the syscall_handler is called and it checks the syscall number which in this case would be SYS_WRITE, and selects the correct case using the switch statement. As sycall_write() requires 3 arguments check_safe_ptr() would be called with the interrupt frame's esp and the parameter 3. It will then check esp, esp+4, esp+8 and esp+12 for pointer safety and assuming that all the pointers are safe it would return without killing the thread. 
+First of all the syscall_handler is called and before it checks the syscall number it will check if esp is safe, if so then it will dereference the esp giving the syscall number which in this case would be SYS_WRITE, and then select the correct case using the switch statement. As sycall_write() requires 3 arguments check_safe_ptr() would be called with the first argument (ie. esp + 4) and the parameter 3. It will then check esp+4, esp+8 and esp+12 for pointer safety and assuming that all the pointers are safe it would return without killing the thread. 
 
 Next the syscall_write() method would be called with all the arguments taken from their correct places on the stack and the first thing syscall_write() would do is call check_buffer_safety() with the buffer pointer and size of the amount of text expected to write passed in. This would then check as mentioned above the safety of the first pointer of the buffer, the last pointer and the safety at each PGSIZE location into the buffer. Finally the function call would perform the rest of the code as syscall_write() is expected to and return by placing the number of bytes actually written in the interrupt frames' eax.
 
