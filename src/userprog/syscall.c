@@ -52,16 +52,16 @@ static void
 syscall_handler (struct intr_frame *f) 
 {
   
-  uint32_t* esp = f->esp;
+  void* esp = f->esp;
   uint32_t* eax = &f->eax;
   unsigned int call_number = 0xDEADBEEF;
   
-  check_safe_ptr(esp, 0);
-  call_number = *esp;
+  check_safe_ptr(esp, 1);
+  call_number = *(uint32_t*)esp;
 
-  void* argument_1 = (void*)(esp + 1);
-  void* argument_2 = (void*)(esp + 2);
-  void* argument_3 = (void*)(esp + 3);
+  void* argument_1 = esp + 1 * sizeof(uint32_t);
+  void* argument_2 = esp + 2 * sizeof(uint32_t);
+  void* argument_3 = esp + 3 * sizeof(uint32_t);
 
   switch(call_number)
   {
@@ -70,62 +70,62 @@ syscall_handler (struct intr_frame *f)
       break;
       
     case SYS_EXIT:
-      check_safe_ptr (esp, 1);
+      check_safe_ptr (argument_1, 1);
       syscall_exit(*(int*)argument_1); 
       break;
       
     case SYS_EXEC:
-      check_safe_ptr (esp, 1);
+      check_safe_ptr (argument_1, 1);
       syscall_exec(eax, *(const char**)argument_1); 
       break;
       
     case SYS_WAIT:
-      check_safe_ptr (esp, 1);
+      check_safe_ptr (argument_1, 1);
       syscall_wait(eax, *((pid_t*)argument_1)); 
       break;
       
     case SYS_CREATE:
-      check_safe_ptr (esp, 2);
+      check_safe_ptr (argument_1, 2);
       syscall_create(eax, *(const char**)argument_1, *(unsigned int*)argument_2); 
       break;
       
     case SYS_REMOVE: 
-      check_safe_ptr (esp, 1);
+      check_safe_ptr (argument_1, 1);
       syscall_remove(eax, *(const char**)argument_1); 
       break;
       
     case SYS_OPEN:
-      check_safe_ptr (esp, 1);
+      check_safe_ptr (argument_1, 1);
       syscall_open(eax, *(const char**)argument_1); 
       break;
       
     case SYS_FILESIZE:
-      check_safe_ptr (esp, 1);
+      check_safe_ptr (argument_1, 1);
       syscall_filesize(eax, *(int*)argument_1); 
       break;
       
     case SYS_READ:
-      check_safe_ptr (esp, 3);
+      check_safe_ptr (argument_1, 3);
       syscall_read(eax, *(int*)argument_1, *(void**)argument_2, *((unsigned int*)argument_3)); 
       break;
       
     case SYS_WRITE: 
-      check_safe_ptr (esp, 3);
+      check_safe_ptr (argument_1, 3);
       syscall_write(eax, *(int*)argument_1, *(void**)argument_2, *((unsigned int*)argument_3)); 
       break;
       
     case SYS_SEEK: 
-      check_safe_ptr (esp, 2);
+      check_safe_ptr (argument_1, 2);
       syscall_seek(*(int*)argument_1, *(unsigned int*)argument_2); 
       break;
       
     case SYS_TELL:
-      check_safe_ptr (esp, 1);
+      check_safe_ptr (argument_1, 1);
       syscall_tell(eax, *(int*)argument_1); 
       break;
       
     case SYS_CLOSE: 
-      check_safe_ptr (esp, 1);
+      check_safe_ptr (argument_1, 1);
       syscall_close(*(int*)argument_1); 
       break;
       
@@ -223,49 +223,6 @@ syscall_open(uint32_t* eax, const char *file_name)
   }
 }
 
-
-static void
-syscall_write(uint32_t* eax, int fd, const void *buffer, unsigned int size)
-{
-  check_buffer_safety(buffer, size);
-  
-  int write_size;
-  struct file* file;
-  
-  /* Writes to console, in blocks < maxchar */
-  if (fd == 1) {
-    for (write_size = size; write_size > 0; write_size -= MAXCHAR) {
-      if (write_size < MAXCHAR)
-        putbuf((char*)buffer, write_size);
-
-      else {
-        putbuf((char*)buffer, MAXCHAR);
-        buffer += MAXCHAR;
-      }
-      syscall_return_int (eax, size);
-    }
-  }
-  /* Write to file fd.*/
-  else {
-    file = find_file(fd);
-    
-    /* If fd is incorrect, return -1 */
-    if (file == NULL)
-      syscall_return_int(eax, -1);
-    
-    else {
-      
-      /* Lock filesystem, write to file, unlock */
-      lock_acquire(&filesys_lock);
-      write_size = (int)file_write(file, buffer, size);
-      lock_release(&filesys_lock);
-      
-      syscall_return_int(eax, write_size);
-    }
-  }
-}
-
-
 static void 
 syscall_filesize(uint32_t* eax, int fd) 
 {
@@ -326,26 +283,44 @@ syscall_read(uint32_t* eax, int fd, void* buffer, unsigned int size)
   }
 }
 
-static void 
-syscall_tell (uint32_t* eax, int fd) 
+static void
+syscall_write(uint32_t* eax, int fd, const void *buffer, unsigned int size)
 {
-  int position;
+  check_buffer_safety(buffer, size);
+  
+  int write_size;
   struct file* file;
   
-  file = find_file ( fd );
-  
-  /* If fd is incorrect, return -1 */
-  if (file == NULL)
-    syscall_return_uint (eax, -1);
-  
-  else 
-  {
-    /* Lock filesystem, read file position, unlock */
-    lock_acquire(&filesys_lock);
-    position = (int) file_tell(file);
-    lock_release(&filesys_lock);
-  
-    syscall_return_uint (eax, position);
+  /* Writes to console, in blocks < maxchar */
+  if (fd == 1) {
+    for (write_size = size; write_size > 0; write_size -= MAXCHAR) {
+      if (write_size < MAXCHAR)
+        putbuf((char*)buffer, write_size);
+
+      else {
+        putbuf((char*)buffer, MAXCHAR);
+        buffer += MAXCHAR;
+      }
+      syscall_return_int (eax, size);
+    }
+  }
+  /* Write to file fd.*/
+  else {
+    file = find_file(fd);
+    
+    /* If fd is incorrect, return -1 */
+    if (file == NULL)
+      syscall_return_int(eax, -1);
+    
+    else {
+      
+      /* Lock filesystem, write to file, unlock */
+      lock_acquire(&filesys_lock);
+      write_size = (int)file_write(file, buffer, size);
+      lock_release(&filesys_lock);
+      
+      syscall_return_int(eax, write_size);
+    }
   }
 }
 
@@ -366,6 +341,29 @@ syscall_seek (int fd, unsigned position)
     lock_acquire(&filesys_lock);
     file_seek(file, (off_t)position);
     lock_release(&filesys_lock);
+  }
+}
+
+static void 
+syscall_tell (uint32_t* eax, int fd) 
+{
+  int position;
+  struct file* file;
+  
+  file = find_file ( fd );
+  
+  /* If fd is incorrect, return -1 */
+  if (file == NULL)
+    syscall_return_uint (eax, -1);
+  
+  else 
+  {
+    /* Lock filesystem, read file position, unlock */
+    lock_acquire(&filesys_lock);
+    position = (int) file_tell(file);
+    lock_release(&filesys_lock);
+  
+    syscall_return_uint (eax, position);
   }
 }
 
@@ -391,7 +389,7 @@ syscall_close (int fd)
 
 }
 
-/* Syscall return methods */
+/* --- Syscall return methods ---*/
 
 static void
 syscall_return_int (uint32_t* eax, const int value)
@@ -416,6 +414,7 @@ syscall_return_uint (uint32_t* eax, const unsigned value)
 {
   *eax = value;
 }
+/* ---- End of return methods ---- */
 
 
 /* Returns the file associated with the given file descriptor */
@@ -448,7 +447,7 @@ check_buffer_safety (const void* buffer, int size)
     thread_exit();
   
   /* Check if at each PGSIZE interval the buffer is safe */
-  for(i = 0; i > size / PGSIZE ; i++)
+  for(i = 1; i <= size / PGSIZE ; i++)
   {
     if( !is_safe_ptr(buffer + (i*PGSIZE)))
       thread_exit();
@@ -461,7 +460,7 @@ static void
 check_safe_ptr (const void *ptr, int no_args)
 {
   int i;
-  for(i = 0; i <= no_args; i++){
+  for(i = 0; i < no_args; i++){
     if (!is_safe_ptr(ptr + (i * sizeof(uint32_t))))
       thread_exit();
   }

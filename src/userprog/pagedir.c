@@ -273,7 +273,7 @@ is_safe_ptr(const void* vaddr)
   if(vaddr == NULL || !is_user_vaddr (vaddr))
     return false;
 
-  /*Check pointer points to mapped space -UNSURE ABOUT THIS*/
+  /* Check pointer points to mapped space */
   ptr = lookup_page (active_pd(), vaddr, false);
   if(ptr == NULL || (*ptr & PTE_P) == 0)
     return false;

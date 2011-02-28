@@ -46,7 +46,7 @@ struct arg_elem
 
 ---- ALGORITHMS ----
 
->> A2: Briefly describe how you implemented argument parsing.  How do
+>> A2: Briefly describe how you implemented argument parsing. How do
 >> you arrange for the elements of argv[] to be in the right order?
 >> How do you avoid overflowing the stack page?
 
@@ -142,7 +142,13 @@ syscall_write() once again checks the pointer safety of the buffer. It then chec
 >> for a system call that only copies 2 bytes of data?  Is there room
 >> for improvement in these numbers, and how much?
 
-?
+<<<<<<< HEAD
+
+=======
+With a full page:       1 3 2 1
+
+With a 2 bytes page:    1 3 2 0 
+>>>>>>> 67f2e534bc696b5e4badd532abca067125b86476
 
 >> B5: Briefly describe your implementation of the "wait" system call
 >> and how it interacts with process termination.
@@ -194,7 +200,6 @@ syscall_exec() calls process_execute(), which after initialising the process per
 
 A check is then performed to ensure that the new processes load has actually returned correctly, if not the function returns with the EXIT_FAILURE status, otherwise it will return the child processes' thread tid.
 
-
 >> B8: Consider parent process P with child process C.  How do you
 >> ensure proper synchronization and avoid race conditions when P
 >> calls wait(C) before C exits?  After C exits?  How do you ensure
@@ -202,14 +207,18 @@ A check is then performed to ensure that the new processes load has actually ret
 >> terminates without waiting, before C exits?  After C exits?  Are
 >> there any special cases?
 
-?
+Processes have an exit_complete semaphore which is downed in a process_wait() call on a child process, this semaphore is itself upped when a process_exit() call is performed. In a process_execute() when a child process is initialised this semaphore is initialised to 0. 
+
+This means that if a process waits on a child it will perform a sema_down() on exit_complete and only return from that wait when the child itself exits and performs a sema_up() because initially it will be set to 0. If inversly the child process exits before the a process_wait() on it is called then its exit_complete semaphore will be set to 1, so the sema_down() will mean that it will not have to wait on the child process and be able to just carry on with freeing the childs memory. By using a semaphore we avoid all possible synchronisation and race conditions.
+
+We ensure that all of a dead processes rescources are freed by making all parent processes process_wait() on their children when they themselves call process_exit() and in turn free up their childs memory once it returns. This means that dead processes may hang around longer than necessary but it saves us from having a global list of processes and iterating through the whole list every so often checking if these processes are dead in order to free their memory. It also means that we have no issues with child processes dying after their parents and having no one to free their memory.
 
 ---- RATIONALE ----
 
 >> B9: Why did you choose to implement access to user memory from the
 >> kernel in the way that you did?
 
-Before every time we dereference a pointer to user memory we check its safe using is_safe_ptr(), which follows the conditions stated in the spec to guarantee a pointer is safe. Then just dereference it, accessing all user memory from addresses returned from the interrupt_frame. We chose this method because it was the simplest one, allowing us to safely assume that when the is_safe_ptr() method returns true, that address is safe to access. 
+Before every time we dereference a pointer to user memory we check its safe using is_safe_ptr(), which follows the conditions stated in the spec to guarantee a pointer is safe. Then just dereference it, accessing all user memory from addresses returned from the interrupt_frame. We chose this method because it was the simplest one, allowing us to safely assume that when the is_safe_ptr() method returns true, that address is safe to access.
 
 >> B10: What advantages or disadvantages can you see to your design
 >> for file descriptors?
@@ -240,7 +249,7 @@ They were all fairly hard, although altogether it took less time and was probabl
 >> Did you find that working on a particular part of the assignment gave
 >> you greater insight into some aspect of OS design?
 
-The system call aspect of the assignment gave us a huge insight into how operating systems and userprograms have to interact in order to acheive their goals.
+The system call aspect of the assignment gave us a huge insight into how operating systems and user programs have to interact in order to acheive their goals.
 
 >> Is there some particular fact or hint we should give students in
 >> future quarters to help them solve the problems?  Conversely, did you
