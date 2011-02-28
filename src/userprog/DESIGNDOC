@@ -209,7 +209,7 @@ A check is then performed to ensure that the new processes load has actually ret
 >> B9: Why did you choose to implement access to user memory from the
 >> kernel in the way that you did?
 
-Before every time we dereference a pointer to user memory we check its safe using is_safe_ptr(), which follows the conditions stated in the spec to guarantee a pointer is safe. Then just dereference it, accessing all user memory from addresses returned from the interrupt_frame. We chose this method because it was the simplest one, allowing us to safely assume that when the is_safe_ptr() method returns true, that address is safe to access. 
+Before every time we dereference a pointer to user memory we check its safe using is_safe_ptr(), which follows the conditions stated in the spec to guarantee a pointer is safe. Then just dereference it, accessing all user memory from addresses returned from the interrupt_frame. We chose this method because it was the simplest one, allowing us to safely assume that when the is_safe_ptr() method returns true, that address is safe to access.
 
 >> B10: What advantages or disadvantages can you see to your design
 >> for file descriptors?
