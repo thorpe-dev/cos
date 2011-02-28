@@ -196,7 +196,6 @@ syscall_exec() calls process_execute(), which after initialising the process per
 
 A check is then performed to ensure that the new processes load has actually returned correctly, if not the function returns with the EXIT_FAILURE status, otherwise it will return the child processes' thread tid.
 
-
 >> B8: Consider parent process P with child process C.  How do you
 >> ensure proper synchronization and avoid race conditions when P
 >> calls wait(C) before C exits?  After C exits?  How do you ensure
@@ -204,7 +203,11 @@ A check is then performed to ensure that the new processes load has actually ret
 >> terminates without waiting, before C exits?  After C exits?  Are
 >> there any special cases?
 
-?
+Processes have an exit_complete semaphore which is downed in a process_wait() call on a child process, this semaphore is itself upped when a process_exit() call is performed. In a process_execute() when a child process is initialised this semaphore is initialised to 0. 
+
+This means that if a process waits on a child it will perform a sema_down() on exit_complete and only return from that wait when the child itself exits and performs a sema_up() because initially it will be set to 0. If inversly the child process exits before the a process_wait() on it is called then its exit_complete semaphore will be set to 1, so the sema_down() will mean that it will not have to wait on the child process and be able to just carry on with freeing the childs memory. By using a semaphore we avoid all possible synchronisation and race conditions.
+
+We ensure that all of a dead processes rescources are freed by making all parent processes process_wait() on their children when they themselves call process_exit() and in turn free up their childs memory once it returns. This means that dead processes may hang around longer than necessary but it saves us from having a global list of processes and iterating through the whole list every so often checking if these processes are dead in order to free their memory. It also means that we have no issues with child processes dying after their parents and having no one to free their memory.
 
 ---- RATIONALE ----
 
