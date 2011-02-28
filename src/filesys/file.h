@@ -33,8 +33,8 @@ struct file
   struct inode *inode;        /* File's inode. */
   off_t pos;                  /* Current position. */
   bool deny_write;            /* Has file_deny_write() been called? */
-  int fd;                     // File descriptor
-  struct list_elem elem;      // For making a list of files in struct process
+  int fd;                     /* File descriptor */
+  struct list_elem elem;      /* For making a list of files in struct process */
 };
 
 #endif /* filesys/file.h */
