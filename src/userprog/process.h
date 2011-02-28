@@ -41,7 +41,7 @@ struct process
   struct list open_files;
   int next_fd; // Used for generating file descriptors
   // Members below here are only initialised upon successful thread creation
-  struct thread* thread; // The thread associated with this process
+  //struct thread* thread; // The thread associated with this process
   struct file* process_file; // The filename of the process's executable
 };
 

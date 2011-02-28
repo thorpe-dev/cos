@@ -35,7 +35,7 @@ None
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
 Argument list element holds the argument, its length and its location
-on the stack:
+on a stack:
 struct arg_elem
 {
   char argument[128];
