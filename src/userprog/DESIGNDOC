@@ -35,7 +35,7 @@ None
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
 Argument list element holds the argument, its length and its location
-on the stack:
+on a stack:
 struct arg_elem
 {
   char argument[128];
@@ -181,7 +181,7 @@ In order to not obscure the primary function of system call code, pointers are c
 
 This function check_safe_ptr() then calls is_safe_ptr(), a function written in pagedir.c, to check each individual pointer and check that it is not NULL, over PHYSBASE or pointing to memory which has not been allocated yet.
 
-To ensure that allocated resources are freed, if the is_safe_ptr() returns false, then the process is killed with thread_exit() which then frees up all the resources used??
+To ensure that allocated resources are freed, if the is_safe_ptr() returns false, then the process is killed with thread_exit() which then frees up all the resources used and closes all the open files (as thread_exit() also calls process_exit() ).
 
 ---- SYNCHRONIZATION ----
 
@@ -209,7 +209,7 @@ A check is then performed to ensure that the new processes load has actually ret
 >> B9: Why did you choose to implement access to user memory from the
 >> kernel in the way that you did?
 
-Before every time we dereference a pointer to user memory we check its safe then just dereference it, accessing all user memory from addresses returned from the interrupt_frame ???
+Before every time we dereference a pointer to user memory we check its safe then just dereference it, accessing all user memory from addresses returned from the interrupt_frame. We chose this method because it was the simplest one, allowing us to safely assumely that if the is_safe_ptr() method returns true, that address is safe to access. 
 
 >> B10: What advantages or disadvantages can you see to your design
 >> for file descriptors?
@@ -240,19 +240,19 @@ They were all fairly hard, although altogether it took less time and was probabl
 >> Did you find that working on a particular part of the assignment gave
 >> you greater insight into some aspect of OS design?
 
-?
+The system call aspect of the assignment gave us a huge insight into how operating systems and userprograms have to interact in order to acheive their goals.
 
 >> Is there some particular fact or hint we should give students in
 >> future quarters to help them solve the problems?  Conversely, did you
 >> find any of our guidance to be misleading?
 
-?
+None of the guidance we received was misleading.
 
 >> Do you have any suggestions for the TAs to more effectively assist
 >> students, either for future quarters or the remaining tasks?
 
-We did not ask for any help from the TAs.
+We did not ask for any help from the TAs, other than a question on blackboard about how to correctly "push" to a new process's stack and what address to use.
 
 >> Any other comments?
 
-?
+No.

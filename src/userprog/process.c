@@ -106,7 +106,6 @@ start_process (void *process_)
   /* Process information is same as thread information */
   process->command = thread->name;
   process->pid = thread->tid;
-  process->thread = thread;
   process->load_success = success;
 
   /* Signal load complete */
@@ -581,8 +580,10 @@ setup_stack (void **esp, const char *command)
           strlcpy((char*)ptr, this_arg->argument, this_arg->length);
         }
 
-        /* Word Align */
-        ptr = (uint8_t*)((int)ptr & ~0x3);
+        /* Word Align
+        We NAND the pointer with 0b11, setting the two least-significant bits 
+        to 0. This effectively rounds down to the nearest 4 bytes. */
+        ptr = (uint8_t*)((int)ptr & ~0b11);
 
         ptr -= pointer_size;
         *ptr = 0;
