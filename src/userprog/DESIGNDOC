@@ -40,7 +40,7 @@ struct arg_elem
 {
   char argument[128];
   int length;
-  uint32_t* location;
+  char* location;
   struct list_elem elem;
 };
 
@@ -54,7 +54,7 @@ To begin with we loop through the command line tokenising it one word at a time 
 
 Next we push the actual arguments onto the stack in arguments' list order, which is now effectively backwards or in other words right-to-left on the command line as expected. As each argument is actually pushed onto the stack, a pointer to its location now on the stack is also saved in the list in *location.
 
-Word alignement and push arg[max] are pushed onto the stack ???
+Word alignment and push arg[max] are pushed onto the stack ???
 
 One last loop is performed through the list to push the location pointers onto the stack once again in list order again hence right-to-left on the command line.
 
@@ -72,7 +72,7 @@ The main difference between strtok() and strtok_r() is that strtok_r() stores th
 
 One advantage of the Unix approach is that the shell can pre-process arguments like * and expand the arguments to what they actually are in the filesystem so that the kernel only has to deal with real arguments.
 
-A second advantage is that in Unix less work is done in kernel space, since splitting a string does not require any kernel privilidges it can be done in user space after all the the more work done in user space the better.
+A second advantage is that in Unix less work is done in kernel space, since splitting a string does not require any kernel privileges it can be done in user space after all the the more work done in user space the better.
 
                  SYSTEM CALLS
                  ============
@@ -126,7 +126,7 @@ struct file
 >> Are file descriptors unique within the entire OS or just within a
 >> single process?
 
-Each process has an associated list of open files beginning with the file descriptor 2 (as 1 is reserved for console writes), which gets a new struct file added to it each time a syscall_open is called, with its fd as the process->next_fd which is then incremented itself. Therefore there is no universal list of open files with the same fd for each file, but rather individual open files lists for each process.
+Each process has an associated list of open files beginning with the file descriptor 2 (as 1 is reserved for console writes), which gets a new struct file added to it each time a syscall_open is called, with its fd as the process->next_fd which is then incremented itself. Therefore there is no universal list of open files with the same fd for each file, but rather individual open files lists for each process, this ensures that a process cannot use modify another process's open files without first opening them itself.
 
 ---- ALGORITHMS ----
 
