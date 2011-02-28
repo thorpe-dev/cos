@@ -124,7 +124,7 @@ struct file
 >> Are file descriptors unique within the entire OS or just within a
 >> single process?
 
-Each process has an associated list of open files beginning with the file descriptor 2 (as 1 is reserved for console writes), which gets a new struct file added to it each time a syscall_open() is called, with its fd set as the process->next_fd which is then incremented itself. Therefore there is no universal list of open files with the same fd for each file, but rather individual open files lists for each process, this ensures that a process cannot use modify another process's open files without first opening them itself.
+Each process has an associated list of open files beginning with the file descriptor 2 (as 1 is reserved for console writes), which gets a new struct file added to it each time a syscall_open() is called, with its fd set as the process->next_fd which is then incremented itself. Therefore there is no universal list of open files with the same fd for each file, but rather individual open files lists for each process, this ensures that a process cannot use or  modify another process's open files without first opening them itself.
 
 ---- ALGORITHMS ----
 
@@ -132,15 +132,10 @@ Each process has an associated list of open files beginning with the file descri
 >> kernel.
 
 syscall_read:
-syscall_read() simply checks the pointer safety of the buffer (by first checking if buffer is safe, then if buffer + size is safe, assuming that all the addresses in between the start and the end of the buffer will be safe too), it then gets the corresponding file from the file descriptor number passed in and checks whether this is NULL.
-
-If its NULL it returns a -1 error status to the threads' eax, otherwise it will acquire the filesystem lock, read from the file then release the lock, returning the number of bytes read.
+syscall_read() firstly checks the pointer safety of the buffer (by first checking if buffer is_safe_ptr(), then if buffer + size is_safe_ptr(), assuming that all the addresses in between the start and the end of the buffer will be safe too), it then gets the corresponding file from the file descriptor number passed in from the processes open_files list and checks whether this is NULL. If its NULL it returns a -1 error status to the thread's eax, otherwise it will acquire the filesystem lock, read from the file then release the lock, returning the number of bytes read.
 
 syscall_write:
-syscall_write() once again checks the pointer safety of the buffer. It then checks whether the file descriptor is 1, if so it will try writing to console MAXCHAR bytes at a time where MAXCHAR is defined as 512 bytes.
-
-Othwerise it gets the corresponding file from the file descriptor passed in and checks whether this is NULL. If its NULL it returns a -1 error status like in syscall_read() otherwise, it acquires the filesystem lock, writes to the file then releases the locks and returns the number of bytes written, once again like in syscall_read().
-
+syscall_write() once again checks the pointer safety of the buffer. It then checks whether the file descriptor is 1, if so it will try writing to console MAXCHAR bytes at a time where MAXCHAR is defined as 512 bytes. Othwerise it gets the corresponding file from the file descriptor passed in and checks whether this is NULL. If its NULL it returns a -1 error status like in syscall_read() otherwise, it acquires the filesystem lock, writes to the file then releases the locks and returns the number of bytes written, like in syscall_read().
 
 >> B4: Suppose a system call causes a full page (4,096 bytes) of data
 >> to be copied from user space into the kernel.  What is the least
