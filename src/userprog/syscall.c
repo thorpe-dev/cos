@@ -223,49 +223,6 @@ syscall_open(uint32_t* eax, const char *file_name)
   }
 }
 
-
-static void
-syscall_write(uint32_t* eax, int fd, const void *buffer, unsigned int size)
-{
-  check_buffer_safety(buffer, size);
-  
-  int write_size;
-  struct file* file;
-  
-  /* Writes to console, in blocks < maxchar */
-  if (fd == 1) {
-    for (write_size = size; write_size > 0; write_size -= MAXCHAR) {
-      if (write_size < MAXCHAR)
-        putbuf((char*)buffer, write_size);
-
-      else {
-        putbuf((char*)buffer, MAXCHAR);
-        buffer += MAXCHAR;
-      }
-      syscall_return_int (eax, size);
-    }
-  }
-  /* Write to file fd.*/
-  else {
-    file = find_file(fd);
-    
-    /* If fd is incorrect, return -1 */
-    if (file == NULL)
-      syscall_return_int(eax, -1);
-    
-    else {
-      
-      /* Lock filesystem, write to file, unlock */
-      lock_acquire(&filesys_lock);
-      write_size = (int)file_write(file, buffer, size);
-      lock_release(&filesys_lock);
-      
-      syscall_return_int(eax, write_size);
-    }
-  }
-}
-
-
 static void 
 syscall_filesize(uint32_t* eax, int fd) 
 {
@@ -326,26 +283,44 @@ syscall_read(uint32_t* eax, int fd, void* buffer, unsigned int size)
   }
 }
 
-static void 
-syscall_tell (uint32_t* eax, int fd) 
+static void
+syscall_write(uint32_t* eax, int fd, const void *buffer, unsigned int size)
 {
-  int position;
+  check_buffer_safety(buffer, size);
+  
+  int write_size;
   struct file* file;
   
-  file = find_file ( fd );
-  
-  /* If fd is incorrect, return -1 */
-  if (file == NULL)
-    syscall_return_uint (eax, -1);
-  
-  else 
-  {
-    /* Lock filesystem, read file position, unlock */
-    lock_acquire(&filesys_lock);
-    position = (int) file_tell(file);
-    lock_release(&filesys_lock);
-  
-    syscall_return_uint (eax, position);
+  /* Writes to console, in blocks < maxchar */
+  if (fd == 1) {
+    for (write_size = size; write_size > 0; write_size -= MAXCHAR) {
+      if (write_size < MAXCHAR)
+        putbuf((char*)buffer, write_size);
+
+      else {
+        putbuf((char*)buffer, MAXCHAR);
+        buffer += MAXCHAR;
+      }
+      syscall_return_int (eax, size);
+    }
+  }
+  /* Write to file fd.*/
+  else {
+    file = find_file(fd);
+    
+    /* If fd is incorrect, return -1 */
+    if (file == NULL)
+      syscall_return_int(eax, -1);
+    
+    else {
+      
+      /* Lock filesystem, write to file, unlock */
+      lock_acquire(&filesys_lock);
+      write_size = (int)file_write(file, buffer, size);
+      lock_release(&filesys_lock);
+      
+      syscall_return_int(eax, write_size);
+    }
   }
 }
 
@@ -366,6 +341,29 @@ syscall_seek (int fd, unsigned position)
     lock_acquire(&filesys_lock);
     file_seek(file, (off_t)position);
     lock_release(&filesys_lock);
+  }
+}
+
+static void 
+syscall_tell (uint32_t* eax, int fd) 
+{
+  int position;
+  struct file* file;
+  
+  file = find_file ( fd );
+  
+  /* If fd is incorrect, return -1 */
+  if (file == NULL)
+    syscall_return_uint (eax, -1);
+  
+  else 
+  {
+    /* Lock filesystem, read file position, unlock */
+    lock_acquire(&filesys_lock);
+    position = (int) file_tell(file);
+    lock_release(&filesys_lock);
+  
+    syscall_return_uint (eax, position);
   }
 }
 
@@ -391,7 +389,7 @@ syscall_close (int fd)
 
 }
 
-/* Syscall return methods */
+/* --- Syscall return methods ---*/
 
 static void
 syscall_return_int (uint32_t* eax, const int value)
@@ -416,6 +414,7 @@ syscall_return_uint (uint32_t* eax, const unsigned value)
 {
   *eax = value;
 }
+/* ---- End of return methods ---- */
 
 
 /* Returns the file associated with the given file descriptor */
