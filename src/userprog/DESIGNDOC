@@ -46,7 +46,7 @@ struct arg_elem
 
 ---- ALGORITHMS ----
 
->> A2: Briefly describe how you implemented argument parsing.  How do
+>> A2: Briefly describe how you implemented argument parsing. How do
 >> you arrange for the elements of argv[] to be in the right order?
 >> How do you avoid overflowing the stack page?
 
@@ -142,7 +142,7 @@ syscall_write() once again checks the pointer safety of the buffer. It then chec
 >> for a system call that only copies 2 bytes of data?  Is there room
 >> for improvement in these numbers, and how much?
 
-?
+
 
 >> B5: Briefly describe your implementation of the "wait" system call
 >> and how it interacts with process termination.
