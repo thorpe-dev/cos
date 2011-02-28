@@ -18,10 +18,10 @@ typedef int pid_t;
 
 struct arg_elem
 {
-  char* argument;
-  int length;
-  char* location;
-  struct list_elem elem;
+  char* argument;         /* Argument */
+  int length;             /* Length of argument (including \0) */
+  char* location;         /* Location on stack */
+  struct list_elem elem;  /* list_elem */
 };
 
 struct process
