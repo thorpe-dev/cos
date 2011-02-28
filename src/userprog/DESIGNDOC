@@ -175,7 +175,7 @@ For each pointer check_safe_ptr() will call is_safe_ptr() which has been written
 
 To ensure that allocated resources are freed, if the is_safe_ptr() returns false, then the process is killed with thread_exit() which then frees up all the resources used and closes all the open files (as thread_exit() also calls process_exit() which does this).
 
-For those syscalls which use a buffer such as syscall_write(), we have written a function called check_buffer_safety() which is called at the start of these syscalls. This method checks firstly that the buffer pointer is safe then that the last place which the pointer can point too is safe ie. buffer + size. If this fails it will then call thread_exit(). However, it also checks if a buffer is large enough that at each interval of PGSIZE this pointer is safe as it may be pointing to a page which is not allocated in memory, as virtual memory allocation is not continuous. ?
+For those syscalls which use a buffer such as syscall_write(), we have written a function called check_buffer_safety() which is called at the start of these syscalls. This method checks firstly that the buffer pointer is safe then that the last place which the pointer can point too is safe ie. buffer + size. If this fails it will then call thread_exit(). However, it also checks if a buffer is large enough that at each interval of PGSIZE this pointer is safe as it may be pointing to a page which is not allocated in memory, as virtual memory allocation is not continuous.
 
 
 An example would be a standard call from a thread to write to a file or to the console:
