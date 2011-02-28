@@ -95,8 +95,6 @@ struct process
   struct list_elem child_elem;    /* So it can be made a child of another processes thread*/
   struct list open_files;         /* List of files the process has open */
   int next_fd;                    /* Used for generating file descriptors*/
- 
-  /* Members below here are only initialised upon successful thread creation */
   struct file* process_file;      /* The filename of the process's executable */
 };
 
@@ -113,10 +111,10 @@ struct thread
 };
 
 
-Files now have an associated fd and are in file.h so that processes can access them and add them to the open_files list with the new list_elem.
+File structs now have an associated fd and are in file.h so that processes can access them and add them to the open_files list with the new list_elem.
 struct file 
 {
-...         
+...
   int fd;                         /* File descriptor */
   struct list_elem elem;          /* For making a list of files in struct process */
 };
@@ -214,14 +212,14 @@ Before every time we dereference a pointer to user memory we check its safe then
 >> B10: What advantages or disadvantages can you see to your design
 >> for file descriptors?
 
-Each process has a list of file_descriptors. The clear disadvantage of this is that rather that space is wasted as if there was only one universal list then less memory would be wasted with these extra unnecessary pointers.
+Each process has a list of file_descriptors. The clear disadvantage of this is that space is wasted as if there was only one universal list then less memory would be wasted with extra and unnecessary pointers.
 
 However, there is an advantage to this method as its easier to just allocate an fd to a file as its needed rather than allocating an fd to all files at the start before any process is even started.
 
 >> B11: The default tid_t to pid_t mapping is the identity mapping.
 >> If you changed it, what advantages are there to your approach?
 
-We used the default identity mapping, as we believed it to be neat and easy to implement since in Pintos each user process has only one thread.
+We used the default identity mapping, as we believed it to be neat and easy to implement since in Pintos each user process has only one thread. If Pintos were to implement multi-threaded processes, we would need to change the mapping from one-to-one to many tid_t to one pid_t.
 
                SURVEY QUESTIONS
                ================
