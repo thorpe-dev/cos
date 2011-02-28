@@ -35,7 +35,7 @@ struct process
   struct list_elem child_elem;    /* So it can be made a child of another processes thread*/
   struct list open_files;         /* List of files the process has open */
   int next_fd;                    /* Used for generating file descriptors*/
-  struct file* process_file;      /* The filename of the process's executable */
+  struct file* process_file;      /* The current process's executable */
 };
 
 

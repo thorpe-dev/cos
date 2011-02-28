@@ -17,7 +17,7 @@ Michael Thorpe  <mt2309@doc.ic.ac.uk>
 >> If you have any preliminary comments on your submission, notes for the
 >> TAs, or extra credit, please give them here.
 
-None
+Compiling with optimisations turned on caused test no-vm/multi-oom to fail with a kernel panic, giving a backtrace which wasn't particularly helpful (saying a method was called from a particular line when it wasn't called from anywhere near there). We discovered that turning off optimisations made the test pass. We spent a lot of time trying to debug this but in the end have just disabled optimisations in Make.config.
 
 >> Please cite any offline or online sources you consulted while
 >> preparing your submission, other than the Pintos documentation, course
@@ -50,15 +50,15 @@ struct arg_elem
 >> you arrange for the elements of argv[] to be in the right order?
 >> How do you avoid overflowing the stack page?
 
-To begin with we loop through the command line tokenising it one word at a time placing each argument into the arguments list in backwards order by pushing them to the front of the list in the order they are tokenised. During this loop we also count the total number of args.
+To begin with, we loop through the command forwards, tokenising it into individual arguments. As we go, we "push" each argument into a list/stack (using the arg_elem struct). At the same time, we push the argument strings onto the stack of the to-be-created process, noting down the address location of where each one is going. During this loop we also count the total number of arguments.
 
-Next we push the actual arguments onto the stack in arguments' list order, which is now effectively backwards or in other words right-to-left on the command line as expected. As each argument is actually pushed onto the stack, a pointer to its location now on the stack is also saved in the list in *location.
+The next step is to fill in some space to make sure everything is word-aligned. We NAND the pointer with 0b11 to knock off the two least-significant bits, effectively rounding it down to the nearest 4 bytes.
 
-Word alignment and push arg[max] are pushed onto the stack ???
+We then loop through the arg_elem list that we created earlier, using the information about the addresses of the arguments to push the location pointers onto the stack of the to-be-created process. This makes sure the pointers go on the stack in the correct order.
 
-One last loop is performed through the list to push the location pointers onto the stack once again in list order again hence right-to-left on the command line.
+Finally we push a pointer to last pointer, ie. argv, the total number of args, ie. argc, and a fake null return address.
 
-Finally we push a pointer to last pointer, ie. argv, the total number of args, ie. argc, and a fake return address with just 0s???
+We avoid overflowing the stack page by restricting the size of the command line that we parse to PGSIZE (4096 bytes).
 
 ---- RATIONALE ----
 
@@ -95,7 +95,7 @@ struct process
   struct list_elem child_elem;    /* So it can be made a child of another processes thread*/
   struct list open_files;         /* List of files the process has open */
   int next_fd;                    /* Used for generating file descriptors*/
-  struct file* process_file;      /* The filename of the process's executable */
+  struct file* process_file;      /* The current process's executable */
 };
 
 

@@ -33,16 +33,16 @@ process_execute (const char *command)
   struct process* new_process;
   
   char* save_ptr;
-  char* file_name = malloc(strlen(command) + 1);
+  char* file_name = malloc(PGSIZE);
 
   new_process = malloc(sizeof(struct process));
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
-  new_process->command = malloc(strlen(command)+1);
+  new_process->command = malloc(PGSIZE);
   if (new_process->command == NULL)
     return TID_ERROR;
-  strlcpy (new_process->command, command, strlen(command)+1);
+  strlcpy (new_process->command, command, PGSIZE);
 
   /* Initialise the new processes fields */
   new_process->load_success = false;
@@ -57,7 +57,7 @@ process_execute (const char *command)
   list_push_front(&thread_current()->children, &new_process->child_elem);
   
   /* Returns just the filename of the command to execute */
-  strlcpy(file_name, command, strlen(command)+1);
+  strlcpy(file_name, command, PGSIZE);
   strtok_r(file_name, " ", &save_ptr);
   
   /* Create a new thread to execute FILE_NAME. */
@@ -582,18 +582,14 @@ setup_stack (void **esp, char *command)
 
           strlcpy(this_arg->argument, token, this_arg->length);
 
-          list_push_front(&arguments, &this_arg->elem);
-          num_args++;
-        }
-
-        /* Pushes arguments onto stack and copy their address to their list_elem, counts no. of args*/
-        for (e = list_begin(&arguments); e != list_end(&arguments);
-             e = list_next(e))
-        { 
-          this_arg = list_entry(e, struct arg_elem, elem);
+          /* Push arguments onto stack and copy their address 
+          to their list_elem */
           ptr -= this_arg->length;
           this_arg->location = PHYS_BASE-(base-ptr);
           strlcpy((char*)ptr, this_arg->argument, this_arg->length);
+
+          list_push_front(&arguments, &this_arg->elem);
+          num_args++;
         }
 
         /* Word Align
