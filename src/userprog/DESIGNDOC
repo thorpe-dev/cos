@@ -50,15 +50,15 @@ struct arg_elem
 >> you arrange for the elements of argv[] to be in the right order?
 >> How do you avoid overflowing the stack page?
 
-To begin with, we loop through the command tokenising it into individual arguments. As we go, we "push" each argument into a list/stack (using the arg_elem struct). At the same time, we push the argument strings onto the stack of the to-be-created process, noting down the address location of where each one is going. During this loop we also count the total number of arguments.
+To begin with, we loop through the command forwards, tokenising it into individual arguments. As we go, we "push" each argument into a list/stack (using the arg_elem struct). At the same time, we push the argument strings onto the stack of the to-be-created process, noting down the address location of where each one is going. During this loop we also count the total number of arguments.
 
 The next step is to fill in some space to make sure everything is word-aligned. We NAND the pointer with 0b11 to knock off the two least-significant bits, effectively rounding it down to the nearest 4 bytes.
 
-We then loop through the arg_elem list that we created earlier, using the information about the addresses of the arguments to push the location pointers onto the stack of the to-be-created process.
+We then loop through the arg_elem list that we created earlier, using the information about the addresses of the arguments to push the location pointers onto the stack of the to-be-created process. This makes sure the pointers go on the stack in the correct order.
 
 Finally we push a pointer to last pointer, ie. argv, the total number of args, ie. argc, and a fake null return address.
 
-We avoid overflowing the stack page by promising every user a bar of chocolate if they promise not to execute any really long commands.
+We avoid overflowing the stack page by restricting the size of the command line that we parse to PGSIZE (4096 bytes).
 
 ---- RATIONALE ----
 
