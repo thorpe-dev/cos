@@ -20,7 +20,7 @@
 #include "threads/malloc.h"
 
 static thread_func start_process NO_RETURN;
-static bool load (const char *cmdline, void (**eip) (void), void **esp);
+static bool load (char *command, void (**eip) (void), void **esp);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -292,7 +292,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp, const char *args);
+static bool setup_stack (void **esp, char *args);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -304,7 +304,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
    and its initial stack pointer into *ESP.
    Returns true if successful, false otherwise. */
 bool
-load (const char* command, void (**eip) (void), void **esp) 
+load (char* command, void (**eip) (void), void **esp) 
 {
   struct thread* t = thread_current ();
   struct Elf32_Ehdr ehdr;
@@ -531,23 +531,20 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
-setup_stack (void **esp, const char *command) 
+setup_stack (void **esp, char *command) 
 {
   uint8_t *kpage;
   bool success = false;
-  
+
   struct list arguments;
   struct list_elem* e = NULL;
   struct arg_elem* this_arg = NULL;
-  /* Copy of the command as strtok modifies it */
-  char command_copy[128];
   char* save_ptr, * token = NULL;
   uint8_t* ptr, * base = NULL;
   int pointer_size = sizeof(void*);
   int num_args = 0;
 
   list_init(&arguments);
-  strlcpy (command_copy, command, 128);
 
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
@@ -557,15 +554,24 @@ setup_stack (void **esp, const char *command)
         ptr = base = (uint8_t*)kpage + PGSIZE;
 
         /* Add argument values and lengths to a list */
-        for (token = strtok_r (command_copy, " ", &save_ptr); token != NULL;
+        for (token = strtok_r (command, " ", &save_ptr); token != NULL;
              token = strtok_r (NULL, " ", &save_ptr))
         {
           this_arg = malloc(sizeof(struct arg_elem));
-          ASSERT(this_arg != NULL);
-          *this_arg->argument = '\0';
-
-          strlcpy(this_arg->argument, token, 128);
+          if(this_arg == NULL) {
+            palloc_free_page(kpage);
+            return false;
+          }
           this_arg->length = strlen(token)+1;
+          this_arg->argument = malloc(this_arg->length);
+          if(this_arg->argument == NULL) {
+            palloc_free_page(kpage);
+            free(this_arg);
+            return false;
+          }
+
+          strlcpy(this_arg->argument, token, this_arg->length);
+
           list_push_front(&arguments, &this_arg->elem);
           num_args++;
         }
@@ -596,6 +602,7 @@ setup_stack (void **esp, const char *command)
           ptr -= pointer_size;
           *(uint32_t*)ptr = (uint32_t)this_arg->location;
           e = list_next(e);
+          free(this_arg->argument);
           free(this_arg);
         }
 

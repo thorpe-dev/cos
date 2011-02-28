@@ -18,7 +18,7 @@ typedef int pid_t;
 
 struct arg_elem
 {
-  char argument[128];
+  char* argument;
   int length;
   char* location;
   struct list_elem elem;
