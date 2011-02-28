@@ -177,7 +177,9 @@ process_exit (void)
   {
     file = list_entry(e, struct file, elem);
     e = list_next (e);
+    lock_acquire(&filesys_lock);
     file_close(file);
+    lock_release(&filesys_lock);
   }
 
   /* Wait for our children to die and free their memory - process_wait frees 
@@ -189,8 +191,10 @@ process_exit (void)
     e = list_next(e);
     process_wait(child->pid);
   }
-
+  
+  lock_acquire(&filesys_lock);
   file_close(cur->process->process_file);
+  lock_release(&filesys_lock);
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -208,7 +212,7 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-    
+  
   sema_up(&cur->process->exit_complete);
   
 }
@@ -329,8 +333,10 @@ load (char* command, void (**eip) (void), void **esp)
     }
 
   t->process->process_file = file;
+  
+  lock_acquire(&filesys_lock);
   file_deny_write(file);
-
+  lock_release(&filesys_lock);
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -406,7 +412,9 @@ load (char* command, void (**eip) (void), void **esp)
 
   /* Set up stack. */
   if (!setup_stack (esp, command)) {
+    lock_acquire(&filesys_lock);
     file_close(file);
+    lock_release(&filesys_lock);
     goto done;
   }
 
