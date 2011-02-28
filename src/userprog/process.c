@@ -167,7 +167,6 @@ process_exit (void)
   struct list_elem* e;
   
   printf ("%s: exit(%d)\n",cur->name, cur->process->exit_status);
-  
   lock_acquire(&filesys_lock);
   file_close(cur->process->process_file);
   lock_release(&filesys_lock);
