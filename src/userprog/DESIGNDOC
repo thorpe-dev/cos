@@ -17,9 +17,13 @@ FirstName LastName <email@domain.example>
 >> If you have any preliminary comments on your submission, notes for the
 >> TAs, or extra credit, please give them here.
 
+None
+
 >> Please cite any offline or online sources you consulted while
 >> preparing your submission, other than the Pintos documentation, course
 >> text, lecture notes, and course staff.
+
+None
 
                ARGUMENT PASSING
                ================
@@ -39,10 +43,6 @@ struct arg_elem
   uint32_t* location;
   struct list_elem elem;
 };
-
-
-List of the above command line arguments elements in setup_stack():
-    struct list arguments;
 
 ---- ALGORITHMS ----
 
@@ -190,11 +190,9 @@ To ensure that allocated resources are freed, if the is_safe_ptr() returns false
 >> loading.  How does your code ensure this?  How is the load
 >> success/failure status passed back to the thread that calls "exec"?
 
-syscall_exec() calls process_execute(), which after initialising the process performs a sema_down() on its load_complete semaphore which returns only returns once the load is complete, ensuring that it cannot return before the new process has finished loading.
+syscall_exec() calls process_execute(), which after initialising the process performs a sema_down() on its load_complete semaphore. Once the load method is complete it performs a sema_up() on this semaphore, ensuring that it cannot return before the new process has finished loading.
 
-It then performs a sema_up() (why????)
-
-A check is then performed to ensure that the new processes load has actually returned correctly, if not the function returns with the EXIT_FAILURE status to the thread which called syscall_exec().
+A check is then performed to ensure that the new processes load has actually returned correctly, if not the function returns with the EXIT_FAILURE status to the thread which called syscall_exec(), otherwise it will return the processes tid.
 
 
 >> B8: Consider parent process P with child process C.  How do you

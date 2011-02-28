@@ -72,7 +72,6 @@ process_execute (const char *command)
 
   /* Wait for load to complete  */
   sema_down(&new_process->load_complete);
-  sema_up(&new_process->load_complete);
   
   /* Check that the process has loaded successfully*/
   if(!new_process->load_success)
