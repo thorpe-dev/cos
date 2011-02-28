@@ -95,8 +95,6 @@ struct process
   struct list_elem child_elem;    /* So it can be made a child of another processes thread*/
   struct list open_files;         /* List of files the process has open */
   int next_fd;                    /* Used for generating file descriptors*/
- 
-  /* Members below here are only initialised upon successful thread creation */
   struct file* process_file;      /* The filename of the process's executable */
 };
 
@@ -113,10 +111,10 @@ struct thread
 };
 
 
-Files now have an associated fd and are in file.h so that processes can access them and add them to the open_files list with the new list_elem.
+File structs now have an associated fd and are in file.h so that processes can access them and add them to the open_files list with the new list_elem.
 struct file 
 {
-...         
+...
   int fd;                         /* File descriptor */
   struct list_elem elem;          /* For making a list of files in struct process */
 };
@@ -126,7 +124,7 @@ struct file
 >> Are file descriptors unique within the entire OS or just within a
 >> single process?
 
-Each process has an associated list of open files beginning with the file descriptor 2 (as 1 is reserved for console writes), which gets a new struct file added to it each time a syscall_open is called, with its fd as the process->next_fd which is then incremented itself. Therefore there is no universal list of open files with the same fd for each file, but rather individual open files lists for each process, this ensures that a process cannot use modify another process's open files without first opening them itself.
+Each process has an associated list of open files beginning with the file descriptor 2 (as 1 is reserved for console writes), which gets a new struct file added to it each time a syscall_open() is called, with its fd set as the process->next_fd which is then incremented itself. Therefore there is no universal list of open files with the same fd for each file, but rather individual open files lists for each process, this ensures that a process cannot use modify another process's open files without first opening them itself.
 
 ---- ALGORITHMS ----
 
