@@ -10,6 +10,7 @@
 #include "threads/malloc.h"
 #include "filesys/file.h"
 #include "threads/synch.h"
+#include "devices/input.h"
 
 #define MAXCHAR 512
 
@@ -285,28 +286,40 @@ syscall_filesize(uint32_t* eax, int fd)
 }
 
 static void 
-syscall_read(uint32_t* eax, int fd, void *buffer, unsigned int size)
+syscall_read(uint32_t* eax, int fd, void* buffer, unsigned int size)
 {
   
   check_buffer_safety(buffer, size);
   
   int read_size;
   struct file* file;
-  
-  file = find_file ( fd );
-  
-  /* If fd is incorrect, return -1 */
-  if (file == NULL)
-    syscall_return_int(eax, -1);
-  
-  /* Lock filesystem, read file, unlock */
-  else 
-  {
-    lock_acquire(&filesys_lock);
-    read_size = (int) file_read(file, buffer, size);
-    lock_release(&filesys_lock);
-  
-    syscall_return_int (eax, read_size);
+  /* If fd is 0, read from console */
+  if (fd == 0) {
+    read_size = 0;
+    while ((unsigned int)read_size < size) {
+      *(char*)buffer = input_getc();
+      read_size++;
+      buffer += sizeof(uint8_t);
+    }
+    
+  }
+  /* Otherwise, read from file */
+  else {
+    
+    file = find_file ( fd );
+    
+    /* If fd is incorrect, return -1 */
+    if (file == NULL)
+      syscall_return_int(eax, -1);
+    /* Lock filesystem, read file, unlock */
+    else 
+    {
+      lock_acquire(&filesys_lock);
+      read_size = (int) file_read(file, buffer, size);
+      lock_release(&filesys_lock);
+    
+      syscall_return_int (eax, read_size);
+    }
   }
 }
 
