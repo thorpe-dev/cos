@@ -167,6 +167,10 @@ process_exit (void)
   struct list_elem* e;
   
   printf ("%s: exit(%d)\n",cur->name, cur->process->exit_status);
+  
+  lock_acquire(&filesys_lock);
+  file_close(cur->process->process_file);
+  lock_release(&filesys_lock);
 
   uint32_t *pd;
   
@@ -192,9 +196,6 @@ process_exit (void)
     process_wait(child->pid);
   }
   
-  lock_acquire(&filesys_lock);
-  file_close(cur->process->process_file);
-  lock_release(&filesys_lock);
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -324,7 +325,9 @@ load (char* command, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file and deny write access. */
+  lock_acquire(&filesys_lock);
   file = filesys_open(t->name);
+  lock_release(&filesys_lock);
 
   if (file == NULL) 
     {
