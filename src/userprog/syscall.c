@@ -10,6 +10,7 @@
 #include "threads/malloc.h"
 #include "filesys/file.h"
 #include "threads/synch.h"
+#include "threads/vaddr.h"
 
 #define MAXCHAR 512
 
@@ -421,14 +422,23 @@ find_file(int fd)
   return NULL;
 }
 
-/* Checks that both ends of the buffer are in */
+/* Checks the buffer is safe by checking at each buffer + PGSIZE */
 static void 
 check_buffer_safety (const void* buffer, int size)
 {
+  int i;
+  
+  /* Check if buffer and if the end of the buffer are safe */
   if ( !is_safe_ptr(buffer) || !is_safe_ptr(buffer + size))
     thread_exit();
-  else
-    return;
+  
+  /* Check if at each PGSIZE interval the buffer is safe */
+  for(i = 0; i > size / PGSIZE ; i++)
+  {
+    if( !is_safe_ptr(buffer + (i*PGSIZE)))
+      thread_exit();
+  }
+  
 }
 
 /* Given the number of arguments, checks that they are all safe pointers*/
