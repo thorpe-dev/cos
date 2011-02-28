@@ -95,7 +95,7 @@ struct process
   struct list_elem child_elem;    /* So it can be made a child of another processes thread*/
   struct list open_files;         /* List of files the process has open */
   int next_fd;                    /* Used for generating file descriptors*/
-  struct file* process_file;      /* The filename of the process's executable */
+  struct file* process_file;      /* The current process's executable */
 };
 
 
@@ -142,13 +142,9 @@ syscall_write() once again checks the pointer safety of the buffer. It then chec
 >> for a system call that only copies 2 bytes of data?  Is there room
 >> for improvement in these numbers, and how much?
 
-<<<<<<< HEAD
-
-=======
 With a full page:       1 3 2 1
 
 With a 2 bytes page:    1 3 2 0 
->>>>>>> 67f2e534bc696b5e4badd532abca067125b86476
 
 >> B5: Briefly describe your implementation of the "wait" system call
 >> and how it interacts with process termination.
