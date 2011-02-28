@@ -143,9 +143,8 @@ access them and add them to the open_files list with the new list_elem.
 struct file 
 {
 ...
-  int fd;                         /* File descriptor */
-  struct list_elem elem;          /* For making a list of files in struct
-process */
+  int fd;                     /* File descriptor */
+  struct list_elem elem;      /* For making a list of files in struct process */
 };
 
 
