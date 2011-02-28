@@ -126,7 +126,7 @@ struct file
 >> Are file descriptors unique within the entire OS or just within a
 >> single process?
 
-Each process has an associated list of open files beginning with the file descriptor 2 (as 1 is reserved for console writes), which gets a new struct file added to it each time a syscall_open is called, with its fd as the process->next_fd which is then incremented itself. Therefore there is no universal list of open files with the same fd for each file, but rather individual open files lists for each process, this ensures that a process cannot use modify another process's open files without first opening them itself.
+Each process has an associated list of open files beginning with the file descriptor 2 (as 1 is reserved for console writes), which gets a new struct file added to it each time a syscall_open() is called, with its fd set as the process->next_fd which is then incremented itself. Therefore there is no universal list of open files with the same fd for each file, but rather individual open files lists for each process, this ensures that a process cannot use modify another process's open files without first opening them itself.
 
 ---- ALGORITHMS ----
 
