@@ -181,7 +181,7 @@ In order to not obscure the primary function of system call code, pointers are c
 
 This function check_safe_ptr() then calls is_safe_ptr(), a function written in pagedir.c, to check each individual pointer and check that it is not NULL, over PHYSBASE or pointing to memory which has not been allocated yet.
 
-To ensure that allocated resources are freed, if the is_safe_ptr() returns false, then the process is killed with thread_exit() which then frees up all the resources used??
+To ensure that allocated resources are freed, if the is_safe_ptr() returns false, then the process is killed with thread_exit() which then frees up all the resources used and closes all the open files (as thread_exit() also calls process_exit() ).
 
 ---- SYNCHRONIZATION ----
 
