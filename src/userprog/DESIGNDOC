@@ -115,8 +115,8 @@ File structs now have an associated fd and are in file.h so that processes can a
 struct file 
 {
 ...
-  int fd;                         /* File descriptor */
-  struct list_elem elem;          /* For making a list of files in struct process */
+  int fd;                     /* File descriptor */
+  struct list_elem elem;      /* For making a list of files in struct process */
 };
 
 
@@ -124,7 +124,7 @@ struct file
 >> Are file descriptors unique within the entire OS or just within a
 >> single process?
 
-Each process has an associated list of open files beginning with the file descriptor 2 (as 1 is reserved for console writes), which gets a new struct file added to it each time a syscall_open() is called, with its fd set as the process->next_fd which is then incremented itself. Therefore there is no universal list of open files with the same fd for each file, but rather individual open files lists for each process, this ensures that a process cannot use or  modify another process's open files without first opening them itself.
+Each process has an associated list of open files beginning with the file descriptor 2 (fd 1 is reserved for console writes). This list gets a new "struct file" added to it each time a syscall_open() is called, with the fd taken from process->next_fd (which is then incremented). Therefore there is no universal list of open files with the same fd for each file, but rather individual open files lists for each process. This ensures that a process cannot use or modify another process's open files without first opening them itself.
 
 ---- ALGORITHMS ----
 
