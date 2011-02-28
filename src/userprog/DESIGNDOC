@@ -64,7 +64,7 @@ We avoid overflowing the stack page by restricting the size of the command line 
 
 >> A3: Why does Pintos implement strtok_r() but not strtok()?
 
-The main difference between strtok() and strtok_r() is that strtok_r() stores the pointer of the index into a string which it last tokenised wheareas strtok() does not. Since The function strtok_r() is mainly given to us for tokenising the command line in Pintos which can have several arguments and needs tokenising several times, it is more useful to be able to have the added functionality from strtok_r().
+The main difference between strtok() and strtok_r() is that strtok_r() stores the pointer of the index into a string which it last tokenised whereas strtok() does not. Since The function strtok_r() is mainly given to us for tokenising the command line in Pintos which can have several arguments and needs tokenising several times, it is more useful to be able to have the added functionality from strtok_r().
 
 >> A4: In Pintos, the kernel separates commands into a executable name
 >> and arguments.  In Unix-like systems, the shell does this
@@ -153,7 +153,7 @@ The first 6 checks cannot be avoided because it is important to check that all t
 
 syscall_wait() calls process_wait() on the process given.
 
-process_wait() iterates through the list of child threads in order to find the tid_t of the child which matches the one handed in. When it finds the correct child, it performs a sema_down() on the childs exit_complete semaphore in order to wait for it to exit. When the child exits, the child will perform a sema_up() on its own exit_complete signalling to the parent process to continue with the method.
+process_wait() iterates through the list of child threads in order to find the tid_t of the child which matches the one handed in. When it finds the correct child, it performs a sema_down() on the childs exit_complete semaphore in order to wait for it to exit. When the child exits, the child will perform a sema_up() on its own exit_complete signaling to the parent process to continue with the method.
 
 The parent process will then proceed to remove the child from its list of children and free up its childs memory. Finally it returns from this function with the child's exit_status.
 
@@ -207,9 +207,9 @@ A check is then performed to ensure that the new processes load has actually ret
 
 Processes have an exit_complete semaphore which is downed in a process_wait() call on a child process, this semaphore is itself upped when a process_exit() call is performed. In a process_execute() when a child process is initialised this semaphore is initialised to 0. 
 
-This means that if a process waits on a child it will perform a sema_down() on exit_complete and only return from that wait when the child itself exits and performs a sema_up() because initially it will be set to 0. If inversly the child process exits before the a process_wait() on it is called then its exit_complete semaphore will be set to 1, so the sema_down() will mean that it will not have to wait on the child process and be able to just carry on with freeing the childs memory. By using a semaphore we avoid all possible synchronisation and race conditions.
+This means that if a process waits on a child it will perform a sema_down() on exit_complete and only return from that wait when the child itself exits and performs a sema_up() because initially it will be set to 0. If inversely the child process exits before the a process_wait() on it is called then its exit_complete semaphore will be set to 1, so the sema_down() will mean that it will not have to wait on the child process and be able to just carry on with freeing the child's memory. By using a semaphore we avoid all possible synchronisation and race conditions.
 
-We ensure that all of a dead processes rescources are freed by making all parent processes process_wait() on their children when they themselves call process_exit() and in turn free up their childs memory once it returns. This means that dead processes may hang around longer than necessary but it saves us from having a global list of processes and iterating through the whole list every so often checking if these processes are dead in order to free their memory. It also means that we have no issues with child processes dying after their parents and having no one to free their memory.
+We ensure that all of a dead processes resources are freed by making all parent processes process_wait() on their children when they themselves call process_exit() and in turn free up their child's memory once it returns. This means that dead processes may hang around longer than necessary but it saves us from having a global list of processes and iterating through the whole list every so often checking if these processes are dead in order to free their memory. It also means that we have no issues with child processes dying after their parents and having no one to free their memory.
 
 ---- RATIONALE ----
 
@@ -247,7 +247,7 @@ They were all fairly hard, although altogether it took less time and was probabl
 >> Did you find that working on a particular part of the assignment gave
 >> you greater insight into some aspect of OS design?
 
-The system call aspect of the assignment gave us a huge insight into how operating systems and user programs have to interact in order to acheive their goals.
+The system call aspect of the assignment gave us a huge insight into how operating systems and user programs have to interact in order to achieve their goals.
 
 >> Is there some particular fact or hint we should give students in
 >> future quarters to help them solve the problems?  Conversely, did you
