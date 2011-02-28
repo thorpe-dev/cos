@@ -17,7 +17,12 @@ Michael Thorpe  <mt2309@doc.ic.ac.uk>
 >> If you have any preliminary comments on your submission, notes for the
 >> TAs, or extra credit, please give them here.
 
-Compiling with optimisations turned on caused test no-vm/multi-oom to fail with a kernel panic, giving a backtrace which wasn't particularly helpful (saying a method was called from a particular line when it wasn't called from anywhere near there). We discovered that turning off optimisations made the test pass. We spent a lot of time trying to debug this but in the end have just disabled optimisations in Make.config.
+Compiling with optimisations turned on caused test no-vm/multi-oom to fail with
+a kernel panic, giving a backtrace which wasn't particularly helpful (saying a
+method was called from a particular line when it wasn't called from anywhere
+near there). We discovered that turning off optimisations made the test pass. We
+spent a lot of time trying to debug this but in the end have just disabled
+optimisations in Make.config.
 
 >> Please cite any offline or online sources you consulted while
 >> preparing your submission, other than the Pintos documentation, course
@@ -50,29 +55,49 @@ struct arg_elem
 >> you arrange for the elements of argv[] to be in the right order?
 >> How do you avoid overflowing the stack page?
 
-To begin with, we loop through the command forwards, tokenising it into individual arguments. As we go, we "push" each argument into a list/stack (using the arg_elem struct). At the same time, we push the argument strings onto the stack of the to-be-created process, noting down the address location of where each one is going. During this loop we also count the total number of arguments.
+To begin with, we loop through the command forwards, tokenising it into
+individual arguments. As we go, we "push" each argument into a list/stack (using
+the arg_elem struct). At the same time, we push the argument strings onto the
+stack of the to-be-created process, noting down the address location of where
+each one is going. During this loop we also count the total number of arguments.
 
-The next step is to fill in some space to make sure everything is word-aligned. We NAND the pointer with 0b11 to knock off the two least-significant bits, effectively rounding it down to the nearest 4 bytes.
+The next step is to fill in some space to make sure everything is word-aligned.
+We NAND the pointer with 0b11 to knock off the two least-significant bits,
+effectively rounding it down to the nearest 4 bytes.
 
-We then loop through the arg_elem list that we created earlier, using the information about the addresses of the arguments to push the location pointers onto the stack of the to-be-created process. This makes sure the pointers go on the stack in the correct order.
+We then loop through the arg_elem list that we created earlier, using the
+information about the addresses of the arguments to push the location pointers
+onto the stack of the to-be-created process. This makes sure the pointers go on
+the stack in the correct order.
 
-Finally we push a pointer to last pointer, ie. argv, the total number of args, ie. argc, and a fake null return address.
+Finally we push a pointer to last pointer, ie. argv, the total number of args,
+ie. argc, and a fake null return address.
 
-We avoid overflowing the stack page by restricting the size of the command line that we parse to PGSIZE (4096 bytes).
+We avoid overflowing the stack page by restricting the size of the command line
+that we parse to PGSIZE (4096 bytes).
 
 ---- RATIONALE ----
 
 >> A3: Why does Pintos implement strtok_r() but not strtok()?
 
-The main difference between strtok() and strtok_r() is that strtok_r() stores the pointer of the index into a string which it last tokenised wheareas strtok() does not. Since The function strtok_r() is mainly given to us for tokenising the command line in Pintos which can have several arguments and needs tokenising several times, it is more useful to be able to have the added functionality from strtok_r().
+The main difference between strtok() and strtok_r() is that strtok_r() stores
+the pointer of the index into a string which it last tokenised wheareas strtok()
+does not. Since The function strtok_r() is mainly given to us for tokenising the
+command line in Pintos which can have several arguments and needs tokenising
+several times, it is more useful to be able to have the added functionality from
+strtok_r().
 
 >> A4: In Pintos, the kernel separates commands into a executable name
 >> and arguments.  In Unix-like systems, the shell does this
 >> separation.  Identify at least two advantages of the Unix approach.
 
-One advantage of the Unix approach is that the shell can pre-process arguments like * and expand the arguments to what they actually are in the filesystem so that the kernel only has to deal with actual arguments.
+One advantage of the Unix approach is that the shell can pre-process arguments
+like * and expand the arguments to what they actually are in the filesystem so
+that the kernel only has to deal with actual arguments.
 
-A second advantage is that in Unix less work is done in kernel space, since splitting a string does not require any kernel privileges it can be done in user space, after all the the more work done in user space the better.
+A second advantage is that in Unix less work is done in kernel space, since
+splitting a string does not require any kernel privileges it can be done in user
+space, after all the the more work done in user space the better.
 
                  SYSTEM CALLS
                  ============
@@ -83,7 +108,8 @@ A second advantage is that in Unix less work is done in kernel space, since spli
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
-User programs' threads belong to processes now, which have their own struct as below.
+User programs' threads belong to processes now, which have their own struct as
+below.
 struct process
 {
   char* command;                  /* Command for use when loading process/thread */
@@ -92,14 +118,15 @@ struct process
   int exit_status;                /* Process exit status initialised to EXIT_FAILURE */
   struct semaphore exit_complete; /* Used in process_wait() */
   pid_t pid;                      /* Process pid */
-  struct list_elem child_elem;    /* So it can be made a child of another processes thread*/
+  struct list_elem child_elem;    /* So it can be made a child of another processes thread */
   struct list open_files;         /* List of files the process has open */
-  int next_fd;                    /* Used for generating file descriptors*/
+  int next_fd;                    /* Used for generating file descriptors */
   struct file* process_file;      /* The current process's executable */
 };
 
 
-User program threads now have a pointer to the process they belong to and a list of their children processes.
+User program threads now have a pointer to the process they belong to and a list
+of their children processes.
 struct thread
 {
 ...
@@ -111,7 +138,8 @@ struct thread
 };
 
 
-File structs now have an associated fd and are in file.h so that processes can access them and add them to the open_files list with the new list_elem.
+File structs now have an associated fd and are in file.h so that processes can
+access them and add them to the open_files list with the new list_elem.
 struct file 
 {
 ...
@@ -124,16 +152,36 @@ struct file
 >> Are file descriptors unique within the entire OS or just within a
 >> single process?
 
-Each process has an associated list of open files beginning with the file descriptor 2 (fd 1 is reserved for console writes). This list gets a new "struct file" added to it each time a syscall_open() is called, with the fd taken from process->next_fd (which is then incremented). Therefore there is no universal list of open files with the same fd for each file, but rather individual open files lists for each process. This ensures that a process cannot use or modify another process's open files without first opening them itself.
+Each process has an associated list of open files beginning with the file
+descriptor 2 (fd 1 is reserved for console writes). This list gets a new "struct
+file" added to it each time a syscall_open() is called, with the fd taken from
+process->next_fd (which is then incremented). Therefore there is no universal
+list of open files with the same fd for each file, but rather individual open
+files lists for each process. This ensures that a process cannot use or modify
+another process's open files without first opening them itself.
 
 ---- ALGORITHMS ----
 
 >> B3: Describe your code for reading and writing user data from the
 >> kernel.
 
-syscall_read() firstly checks the pointer safety of the buffer. Next it checks if fd == 0 and if so it will read in from the console using input_getc() until size chars have been read in. Otherwise, it will use find_file() to get the file corresponding to the file descriptor number passed in from the processes open_files list and check whether this is NULL, which it will be if the file descriptor does not exist for this process. If its NULL it returns a -1 error status to the thread's eax, otherwise it will acquire the filesystem lock, read from the file then release the lock, returning the number of bytes read.
+syscall_read() firstly checks the pointer safety of the buffer. Next it checks
+if fd == 0 and if so it will read in from the console using input_getc() until
+size chars have been read in. Otherwise, it will use find_file() to get the file
+corresponding to the file descriptor number passed in from the processes
+open_files list and check whether this is NULL, which it will be if the file
+descriptor does not exist for this process. If its NULL it returns a -1 error
+status to the thread's eax, otherwise it will acquire the filesystem lock, read
+from the file then release the lock, returning the number of bytes read.
 
-syscall_write() once again checks the pointer safety of the buffer. It then checks whether the file descriptor is 1, if so it will try writing to console MAXCHAR bytes at a time where MAXCHAR is defined as 512 bytes. Otherwise, it will use find_file() to get the file corresponding to the file descriptor number passed in from the processes open_files list and check whether this is NULL. If its NULL it returns a -1 error status like in syscall_read() otherwise, it acquires the filesystem lock, writes to the file then releases the locks and returns the number of bytes written, like in syscall_read().
+syscall_write() once again checks the pointer safety of the buffer. It then
+checks whether the file descriptor is 1, if so it will try writing to console
+MAXCHAR bytes at a time where MAXCHAR is defined as 512 bytes. Otherwise, it
+will use find_file() to get the file corresponding to the file descriptor number
+passed in from the processes open_files list and check whether this is NULL. If
+its NULL it returns a -1 error status like in syscall_read() otherwise, it
+acquires the filesystem lock, writes to the file then releases the locks and
+returns the number of bytes written, like in syscall_read().
 
 >> B4: Suppose a system call causes a full page (4,096 bytes) of data
 >> to be copied from user space into the kernel.  What is the least
@@ -142,20 +190,50 @@ syscall_write() once again checks the pointer safety of the buffer. It then chec
 >> for a system call that only copies 2 bytes of data?  Is there room
 >> for improvement in these numbers, and how much?
 
-Checking pointer safety is the only time a page lookup is performed so we are judging the number of inspections of the page table through the number of is_safe_ptr() calls when performing syscall_write() with a full page of data and with only 2 bytes of data. Initially both will perform 1 check initially that the esp is safe, then 3 checks will be performed that the argument pointers are safe, finally 2 more checks that the buffers initial pointer and a pointer to the last character (ie. buffer + size) in the buffer are safe. So both will perform 6 checks before the number of characters being copied is even taken into account.
+Checking pointer safety is the only time a page lookup is performed so we are
+judging the number of inspections of the page table through the number of
+is_safe_ptr() calls when performing syscall_write() with a full page of data and
+with only 2 bytes of data. Initially both will perform 1 check initially that
+the esp is safe, then 3 checks will be performed that the argument pointers are
+safe, finally 2 more checks that the buffers initial pointer and a pointer to
+the last character (ie. buffer + size) in the buffer are safe. So both will
+perform 6 checks before the number of characters being copied is even taken into
+account.
 
-Now in check_buffer_safety() one extra check for the full page will be done at an interval of buffer + PGSIZE in the for loop which loops size/PGSIZE times. This is because it may be the case that although the initial address of the buffer and the last are mapped the pages in between may not be (although we know that buffer + size will be equivalent to buffer + PGSIZE in this specific example and therefore if that check did not fail then neither will this one and it will be a pointless extra check). On the other hand the buffer with size = 2 bytes of data will not do this check as size/PGSIZE will return 0, so the loop will never be entered.
+Now in check_buffer_safety() one extra check for the full page will be done at
+an interval of buffer + PGSIZE in the for loop which loops size/PGSIZE times.
+This is because it may be the case that although the initial address of the
+buffer and the last are mapped the pages in between may not be (although we know
+that buffer + size will be equivalent to buffer + PGSIZE in this specific
+example and therefore if that check did not fail then neither will this one and
+it will be a pointless extra check). On the other hand the buffer with size = 2
+bytes of data will not do this check as size/PGSIZE will return 0, so the loop
+will never be entered.
 
-The first 6 checks cannot be avoided because it is important to check that all these addresses are valid. The fact that even though the size of the buffer has increased by a whole page yet only one extra inspection is needed would indicate that this is a pretty good way of solving the problem and we would say there is not that much room for improvement as if did not take into account the possibility of space in the buffer not being mapped then it would not be a very safe implementation, yet as only 1 inspection is required per 4K bytes this is fairly optimal.
+The first 6 checks cannot be avoided because it is important to check that all
+these addresses are valid. The fact that even though the size of the buffer has
+increased by a whole page yet only one extra inspection is needed would indicate
+that this is a pretty good way of solving the problem and we would say there is
+not that much room for improvement as if did not take into account the
+possibility of space in the buffer not being mapped then it would not be a very
+safe implementation, yet as only 1 inspection is required per 4K bytes this is
+fairly optimal.
 
 >> B5: Briefly describe your implementation of the "wait" system call
 >> and how it interacts with process termination.
 
 syscall_wait() calls process_wait() on the process given.
 
-process_wait() iterates through the list of child threads in order to find the tid_t of the child which matches the one handed in. When it finds the correct child, it performs a sema_down() on the childs exit_complete semaphore in order to wait for it to exit. When the child exits, the child will perform a sema_up() on its own exit_complete signalling to the parent process to continue with the method.
+process_wait() iterates through the list of child threads in order to find the
+tid_t of the child which matches the one handed in. When it finds the correct
+child, it performs a sema_down() on the childs exit_complete semaphore in order
+to wait for it to exit. When the child exits, the child will perform a sema_up()
+on its own exit_complete signalling to the parent process to continue with the
+method.
 
-The parent process will then proceed to remove the child from its list of children and free up its childs memory. Finally it returns from this function with the child's exit_status.
+The parent process will then proceed to remove the child from its list of
+children and free up its childs memory. Finally it returns from this function
+with the child's exit_status.
 
 >> B6: Any access to user program memory at a user-specified address
 >> can fail due to a bad pointer value.  Such accesses must cause the
@@ -171,20 +249,52 @@ The parent process will then proceed to remove the child from its list of childr
 >> paragraphs, describe the strategy or strategies you adopted for
 >> managing these issues.  Give an example.
 
-In order to not obscure the primary function of system call code, pointers are checked if they are safe through the check_safe_ptr() function call in the syscall_handler() before an individual syscall is even called.  The check_safe_ptr() function takes the interrupt_frame esp and checks the number of args the syscall will require are valid through using in a loop stopping at i >= number of args. 
+In order to not obscure the primary function of system call code, pointers are
+checked if they are safe through the check_safe_ptr() function call in the
+syscall_handler() before an individual syscall is even called.  The
+check_safe_ptr() function takes the interrupt_frame esp and checks the number of
+args the syscall will require are valid through using in a loop stopping at i >=
+number of args. 
 
-For each pointer check_safe_ptr() will call is_safe_ptr() which has been written in pagedir.c and as the spec suggests checks that the pointer passed in is not NULL, over PHYSBASE or pointing to memory which has not been allocated yet.
+For each pointer check_safe_ptr() will call is_safe_ptr() which has been written
+in pagedir.c and as the spec suggests checks that the pointer passed in is not
+NULL, over PHYSBASE or pointing to memory which has not been allocated yet.
 
-To ensure that allocated resources are freed, if the is_safe_ptr() returns false, then the process is killed with thread_exit() which then frees up all the resources used and closes all the open files (as thread_exit() also calls process_exit() which does this).
+To ensure that allocated resources are freed, if the is_safe_ptr() returns
+false, then the process is killed with thread_exit() which then frees up all the
+resources used and closes all the open files (as thread_exit() also calls
+process_exit() which does this).
 
-For those syscalls which use a buffer such as syscall_write(), we have written a function called check_buffer_safety() which is called at the start of these syscalls. This method checks firstly that the buffer pointer is safe then that the last place which the pointer can point too is safe ie. buffer + size. If this fails it will then call thread_exit(). However, it also checks if a buffer is large enough that at each interval of PGSIZE this pointer is safe as it may be pointing to a page which is not allocated in memory, as virtual memory allocation is not continuous.
+For those syscalls which use a buffer such as syscall_write(), we have written a
+function called check_buffer_safety() which is called at the start of these
+syscalls. This method checks firstly that the buffer pointer is safe then that
+the last place which the pointer can point too is safe ie. buffer + size. If
+this fails it will then call thread_exit(). However, it also checks if a buffer
+is large enough that at each interval of PGSIZE this pointer is safe as it may
+be pointing to a page which is not allocated in memory, as virtual memory
+allocation is not continuous.
 
 
-An example would be a standard call from a thread to write to a file or to the console:
+An example would be a standard call from a thread to write to a file or to the
+console:
 
-First of all the syscall_handler is called and before it checks the syscall number it will check if esp is safe, if so then it will dereference the esp giving the syscall number which in this case would be SYS_WRITE, and then select the correct case using the switch statement. As sycall_write() requires 3 arguments check_safe_ptr() would be called with the first argument (ie. esp + 4) and the parameter 3. It will then check esp+4, esp+8 and esp+12 for pointer safety and assuming that all the pointers are safe it would return without killing the thread. 
+First of all the syscall_handler is called and before it checks the syscall
+number it will check if esp is safe, if so then it will dereference the esp
+giving the syscall number which in this case would be SYS_WRITE, and then select
+the correct case using the switch statement. As sycall_write() requires 3
+arguments check_safe_ptr() would be called with the first argument (ie. esp + 4)
+and the parameter 3. It will then check esp+4, esp+8 and esp+12 for pointer
+safety and assuming that all the pointers are safe it would return without
+killing the thread. 
 
-Next the syscall_write() method would be called with all the arguments taken from their correct places on the stack and the first thing syscall_write() would do is call check_buffer_safety() with the buffer pointer and size of the amount of text expected to write passed in. This would then check as mentioned above the safety of the first pointer of the buffer, the last pointer and the safety at each PGSIZE location into the buffer. Finally the function call would perform the rest of the code as syscall_write() is expected to and return by placing the number of bytes actually written in the interrupt frames' eax.
+Next the syscall_write() method would be called with all the arguments taken
+from their correct places on the stack and the first thing syscall_write() would
+do is call check_buffer_safety() with the buffer pointer and size of the amount
+of text expected to write passed in. This would then check as mentioned above
+the safety of the first pointer of the buffer, the last pointer and the safety
+at each PGSIZE location into the buffer. Finally the function call would perform
+the rest of the code as syscall_write() is expected to and return by placing the
+number of bytes actually written in the interrupt frames' eax.
 
 
 ---- SYNCHRONIZATION ----
@@ -194,9 +304,15 @@ Next the syscall_write() method would be called with all the arguments taken fro
 >> loading.  How does your code ensure this?  How is the load
 >> success/failure status passed back to the thread that calls "exec"?
 
-syscall_exec() calls process_execute(), which after initialising the process performs a sema_down() on its load_complete semaphore. Once the new thread has been scheduled and completed its load() method it performs a sema_up() on this semaphore, ensuring that the parent process cannot return before the child process has finished loading.
+syscall_exec() calls process_execute(), which after initialising the process
+performs a sema_down() on its load_complete semaphore. Once the new thread has
+been scheduled and completed its load() method it performs a sema_up() on this
+semaphore, ensuring that the parent process cannot return before the child
+process has finished loading.
 
-A check is then performed to ensure that the new processes load has actually returned correctly, if not the function returns with the EXIT_FAILURE status, otherwise it will return the child processes' thread tid.
+A check is then performed to ensure that the new processes load has actually
+returned correctly, if not the function returns with the EXIT_FAILURE status,
+otherwise it will return the child processes' thread tid.
 
 >> B8: Consider parent process P with child process C.  How do you
 >> ensure proper synchronization and avoid race conditions when P
@@ -205,30 +321,61 @@ A check is then performed to ensure that the new processes load has actually ret
 >> terminates without waiting, before C exits?  After C exits?  Are
 >> there any special cases?
 
-Processes have an exit_complete semaphore which is downed in a process_wait() call on a child process, this semaphore is itself upped when a process_exit() call is performed. In a process_execute() when a child process is initialised this semaphore is initialised to 0. 
+Processes have an exit_complete semaphore which is downed in a process_wait()
+call on a child process, this semaphore is itself upped when a process_exit()
+call is performed. In a process_execute() when a child process is initialised
+this semaphore is initialised to 0. 
 
-This means that if a process waits on a child it will perform a sema_down() on exit_complete and only return from that wait when the child itself exits and performs a sema_up() because initially it will be set to 0. If inversly the child process exits before the a process_wait() on it is called then its exit_complete semaphore will be set to 1, so the sema_down() will mean that it will not have to wait on the child process and be able to just carry on with freeing the childs memory. By using a semaphore we avoid all possible synchronisation and race conditions.
+This means that if a process waits on a child it will perform a sema_down() on
+exit_complete and only return from that wait when the child itself exits and
+performs a sema_up() because initially it will be set to 0. If inversly the
+child process exits before the a process_wait() on it is called then its
+exit_complete semaphore will be set to 1, so the sema_down() will mean that it
+will not have to wait on the child process and be able to just carry on with
+freeing the childs memory. By using a semaphore we avoid all possible
+synchronisation and race conditions.
 
-We ensure that all of a dead processes rescources are freed by making all parent processes process_wait() on their children when they themselves call process_exit() and in turn free up their childs memory once it returns. This means that dead processes may hang around longer than necessary but it saves us from having a global list of processes and iterating through the whole list every so often checking if these processes are dead in order to free their memory. It also means that we have no issues with child processes dying after their parents and having no one to free their memory.
+We ensure that all of a dead processes rescources are freed by making all parent
+processes process_wait() on their children when they themselves call
+process_exit() and in turn free up their childs memory once it returns. This
+means that dead processes may hang around longer than necessary but it saves us
+from having a global list of processes and iterating through the whole list
+every so often checking if these processes are dead in order to free their
+memory. It also means that we have no issues with child processes dying after
+their parents and having no one to free their memory.
 
 ---- RATIONALE ----
 
 >> B9: Why did you choose to implement access to user memory from the
 >> kernel in the way that you did?
 
-Before every time we dereference a pointer to user memory we check its safe using is_safe_ptr(), which follows the conditions stated in the spec to guarantee a pointer is safe. Then just dereference it, accessing all user memory from addresses returned from the interrupt_frame. We chose this method because it was the simplest one, allowing us to safely assume that when the is_safe_ptr() method returns true, that address is safe to access.
+Before every time we dereference a pointer to user memory we check its safe
+using is_safe_ptr(), which follows the conditions stated in the spec to
+guarantee a pointer is safe. Then just dereference it, accessing all user memory
+from addresses returned from the interrupt_frame. We chose this method because
+it was the simplest one, allowing us to safely assume that when the
+is_safe_ptr() method returns true, that address is safe to access.
 
 >> B10: What advantages or disadvantages can you see to your design
 >> for file descriptors?
 
-Each process has a list of file_descriptors. The clear disadvantage of this is that space is wasted as if there was only one universal list then less memory would be wasted with extra and unnecessary pointers.
+Each process has a list of file_descriptors. The clear disadvantage of this is
+that space is wasted as if there was only one universal list then less memory
+would be wasted with extra and unnecessary pointers.
 
-However, there is an advantage to this method as its easier to just allocate an fd to a file as its needed rather than allocating an fd to all files at the start before any process is even started. Also a rogue process will not be able just write or read to a file with a randomly passed in fd if it has not yet opened the file.
+However, there is an advantage to this method as its easier to just allocate an
+fd to a file as its needed rather than allocating an fd to all files at the
+start before any process is even started. Also a rogue process will not be able
+just write or read to a file with a randomly passed in fd if it has not yet
+opened the file.
 
 >> B11: The default tid_t to pid_t mapping is the identity mapping.
 >> If you changed it, what advantages are there to your approach?
 
-We used the default identity mapping, as we believed it to be neat and easy to implement since in Pintos each user process has only one thread. If Pintos were to implement multi-threaded processes, we would need to change the mapping from one-to-one to many tid_t to one pid_t.
+We used the default identity mapping, as we believed it to be neat and easy to
+implement since in Pintos each user process has only one thread. If Pintos were
+to implement multi-threaded processes, we would need to change the mapping from
+one-to-one to many tid_t to one pid_t.
 
                SURVEY QUESTIONS
                ================
@@ -242,12 +389,15 @@ the quarter.
 >> In your opinion, was this assignment, or any one of the three problems
 >> in it, too easy or too hard?  Did it take too long or too little time?
 
-They were all fairly hard, although altogether it took less time and was probably less difficult than task 1.
+They were all fairly hard, although altogether it took less time and was
+probably less difficult than task 1.
 
 >> Did you find that working on a particular part of the assignment gave
 >> you greater insight into some aspect of OS design?
 
-The system call aspect of the assignment gave us a huge insight into how operating systems and user programs have to interact in order to acheive their goals.
+The system call aspect of the assignment gave us a huge insight into how
+operating systems and user programs have to interact in order to acheive their
+goals.
 
 >> Is there some particular fact or hint we should give students in
 >> future quarters to help them solve the problems?  Conversely, did you
@@ -258,7 +408,9 @@ None of the guidance we received was misleading.
 >> Do you have any suggestions for the TAs to more effectively assist
 >> students, either for future quarters or the remaining tasks?
 
-We did not ask for any help from the TAs, other than a question on blackboard about how to correctly "push" to a new process's stack and what address to use, which was in itself quite a useful tool to have at our disposal.
+We did not ask for any help from the TAs, other than a question on blackboard
+about how to correctly "push" to a new process's stack and what address to use,
+which was in itself quite a useful tool to have at our disposal.
 
 >> Any other comments?
 
