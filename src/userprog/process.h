@@ -20,29 +20,22 @@ struct arg_elem
 {
   char argument[128];
   int length;
-  uint32_t* location;
+  char* location;
   struct list_elem elem;
 };
 
 struct process
 {
-  /* Command for use when loading process/thread */
-  char* command;
-  /* Initialised to false */
-  bool load_success;
-  /* Initialised to 0 */
-  struct semaphore load_complete;
-  /* Initialised to EXIT_FAILURE */
-  int exit_status;
-  /* Initialised to 0 */
-  struct semaphore exit_complete;
-  pid_t pid;
-  struct list_elem child_elem;
-  struct list open_files;
-  int next_fd; // Used for generating file descriptors
-  // Members below here are only initialised upon successful thread creation
-  struct thread* thread; // The thread associated with this process
-  struct file* process_file; // The filename of the process's executable
+  char* command;                  /* Command for use when loading process/thread */
+  bool load_success;              /* Used with load_complete */
+  struct semaphore load_complete; /* Ensures load is complete before process_execute() finishes */
+  int exit_status;                /* Process exit status initialised to EXIT_FAILURE */
+  struct semaphore exit_complete; /* Used in process_wait() */
+  pid_t pid;                      /* Process pid */
+  struct list_elem child_elem;    /* So it can be made a child of another processes thread*/
+  struct list open_files;         /* List of files the process has open */
+  int next_fd;                    /* Used for generating file descriptors*/
+  struct file* process_file;      /* The filename of the process's executable */
 };
 
 
