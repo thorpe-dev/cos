@@ -95,8 +95,6 @@ struct process
   struct list_elem child_elem;    /* So it can be made a child of another processes thread*/
   struct list open_files;         /* List of files the process has open */
   int next_fd;                    /* Used for generating file descriptors*/
- 
-  /* Members below here are only initialised upon successful thread creation */
   struct file* process_file;      /* The filename of the process's executable */
 };
 
@@ -113,10 +111,10 @@ struct thread
 };
 
 
-Files now have an associated fd and are in file.h so that processes can access them and add them to the open_files list with the new list_elem.
+File structs now have an associated fd and are in file.h so that processes can access them and add them to the open_files list with the new list_elem.
 struct file 
 {
-...         
+...
   int fd;                         /* File descriptor */
   struct list_elem elem;          /* For making a list of files in struct process */
 };
