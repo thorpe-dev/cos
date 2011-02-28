@@ -131,11 +131,9 @@ Each process has an associated list of open files beginning with the file descri
 >> B3: Describe your code for reading and writing user data from the
 >> kernel.
 
-syscall_read:
-syscall_read() firstly checks the pointer safety of the buffer (by first checking if buffer is_safe_ptr(), then if buffer + size is_safe_ptr(), assuming that all the addresses in between the start and the end of the buffer will be safe too), it then gets the corresponding file from the file descriptor number passed in from the processes open_files list and checks whether this is NULL. If its NULL it returns a -1 error status to the thread's eax, otherwise it will acquire the filesystem lock, read from the file then release the lock, returning the number of bytes read.
+syscall_read() firstly checks the pointer safety of the buffer. Next it checks if fd == 0 and if so it will read in from the console using input_getc() until size chars have been read in. Otherwise, it will use find_file() to get the file corresponding to the file descriptor number passed in from the processes open_files list and check whether this is NULL, which it will be if the file descriptor does not exist for this process. If its NULL it returns a -1 error status to the thread's eax, otherwise it will acquire the filesystem lock, read from the file then release the lock, returning the number of bytes read.
 
-syscall_write:
-syscall_write() once again checks the pointer safety of the buffer. It then checks whether the file descriptor is 1, if so it will try writing to console MAXCHAR bytes at a time where MAXCHAR is defined as 512 bytes. Othwerise it gets the corresponding file from the file descriptor passed in and checks whether this is NULL. If its NULL it returns a -1 error status like in syscall_read() otherwise, it acquires the filesystem lock, writes to the file then releases the locks and returns the number of bytes written, like in syscall_read().
+syscall_write() once again checks the pointer safety of the buffer. It then checks whether the file descriptor is 1, if so it will try writing to console MAXCHAR bytes at a time where MAXCHAR is defined as 512 bytes. Otherwise, it will use find_file() to get the file corresponding to the file descriptor number passed in from the processes open_files list and check whether this is NULL. If its NULL it returns a -1 error status like in syscall_read() otherwise, it acquires the filesystem lock, writes to the file then releases the locks and returns the number of bytes written, like in syscall_read().
 
 >> B4: Suppose a system call causes a full page (4,096 bytes) of data
 >> to be copied from user space into the kernel.  What is the least
@@ -151,7 +149,7 @@ syscall_write() once again checks the pointer safety of the buffer. It then chec
 
 syscall_wait() calls process_wait() on the process given.
 
-process_wait() iterates through the list of child processes in order to find the tid_t of the child which matches the one handed in. When it finds the correct child, it performs a sema_down() on the childs exit_complete semaphore struct in order to wait for it to exit. When the child exits, it will itself perform a sema_up() on its own exit_complete signalling to the parent process to continue with the method.
+process_wait() iterates through the list of child threads in order to find the tid_t of the child which matches the one handed in. When it finds the correct child, it performs a sema_down() on the childs exit_complete semaphore in order to wait for it to exit. When the child exits, the child will perform a sema_up() on its own exit_complete signalling to the parent process to continue with the method.
 
 The parent process will then proceed to remove the child from its list of children and free up its childs memory. Finally it returns from this function with the child's exit_status.
 
@@ -169,12 +167,21 @@ The parent process will then proceed to remove the child from its list of childr
 >> paragraphs, describe the strategy or strategies you adopted for
 >> managing these issues.  Give an example.
 
-Need more detail:
-In order to not obscure the primary function of system call code, pointers are checked if they are safe through the check_safe_ptr() function call which takes the esp and checks that the number of args in a loop which the syscall will require are valid, eg. in syscall_close only one argument is needed, and should be found at esp+4, therefore esp is passed in and the integer 1 is passed so that only esp and esp+4 need to be checked if they are safe. 
+In order to not obscure the primary function of system call code, pointers are checked if they are safe through the check_safe_ptr() function call in the syscall_handler() before an individual syscall is even called.  The check_safe_ptr() function takes the interrupt_frame esp and checks the number of args the syscall will require are valid through using in a loop stopping at i > number of args. 
 
-This function check_safe_ptr() then calls is_safe_ptr(), a function written in pagedir.c, to check each individual pointer and check that it is not NULL, over PHYSBASE or pointing to memory which has not been allocated yet.
+For each pointer check_safe_ptr() will call is_safe_ptr() which has been written in pagedir.c and as the spec suggests checks that the pointer passed in is not NULL, over PHYSBASE or pointing to memory which has not been allocated yet.
 
-To ensure that allocated resources are freed, if the is_safe_ptr() returns false, then the process is killed with thread_exit() which then frees up all the resources used and closes all the open files (as thread_exit() also calls process_exit() ).
+To ensure that allocated resources are freed, if the is_safe_ptr() returns false, then the process is killed with thread_exit() which then frees up all the resources used and closes all the open files (as thread_exit() also calls process_exit() which does this).
+
+For those syscalls which use a buffer such as syscall_write(), we have written a function called check_buffer_safety() which is called at the start of these syscalls. This method checks firstly that the buffer pointer is safe then that the last place which the pointer can point too is safe ie. buffer + size. If this fails it will then call thread_exit(). However, it also checks if a buffer is large enough that at each interval of PGSIZE this pointer is safe as it may be pointing to a page which is not allocated in memory, as virtual memory allocation is not continuous. ?
+
+
+An example would be a standard call from a thread to write to a file or to the console:
+
+First of all the syscall_handler is called and it checks the syscall number which in this case would be SYS_WRITE, and selects the correct case using the switch statement. As sycall_write() requires 3 arguments check_safe_ptr() would be called with the interrupt frame's esp and the parameter 3. It will then check esp, esp+4, esp+8 and esp+12 for pointer safety and assuming that all the pointers are safe it would return without killing the thread. 
+
+Next the syscall_write() method would be called with all the arguments taken from their correct places on the stack and the first thing syscall_write() would do is call check_buffer_safety() with the buffer pointer and size of the amount of text expected to write passed in. This would then check as mentioned above the safety of the first pointer of the buffer, the last pointer and the safety at each PGSIZE location into the buffer. Finally the function call would perform the rest of the code as syscall_write() is expected to and return by placing the number of bytes actually written in the interrupt frames' eax.
+
 
 ---- SYNCHRONIZATION ----
 
@@ -183,9 +190,9 @@ To ensure that allocated resources are freed, if the is_safe_ptr() returns false
 >> loading.  How does your code ensure this?  How is the load
 >> success/failure status passed back to the thread that calls "exec"?
 
-syscall_exec() calls process_execute(), which after initialising the process performs a sema_down() on its load_complete semaphore. Once the load method is complete it performs a sema_up() on this semaphore, ensuring that it cannot return before the new process has finished loading.
+syscall_exec() calls process_execute(), which after initialising the process performs a sema_down() on its load_complete semaphore. Once the new thread has been scheduled and completed its load() method it performs a sema_up() on this semaphore, ensuring that the parent process cannot return before the child process has finished loading.
 
-A check is then performed to ensure that the new processes load has actually returned correctly, if not the function returns with the EXIT_FAILURE status to the thread which called syscall_exec(), otherwise it will return the processes tid.
+A check is then performed to ensure that the new processes load has actually returned correctly, if not the function returns with the EXIT_FAILURE status, otherwise it will return the child processes' thread tid.
 
 
 >> B8: Consider parent process P with child process C.  How do you
@@ -202,14 +209,14 @@ A check is then performed to ensure that the new processes load has actually ret
 >> B9: Why did you choose to implement access to user memory from the
 >> kernel in the way that you did?
 
-Before every time we dereference a pointer to user memory we check its safe then just dereference it, accessing all user memory from addresses returned from the interrupt_frame. We chose this method because it was the simplest one, allowing us to safely assumely that if the is_safe_ptr() method returns true, that address is safe to access. 
+Before every time we dereference a pointer to user memory we check its safe using is_safe_ptr(), which follows the conditions stated in the spec to guarantee a pointer is safe. Then just dereference it, accessing all user memory from addresses returned from the interrupt_frame. We chose this method because it was the simplest one, allowing us to safely assume that when the is_safe_ptr() method returns true, that address is safe to access. 
 
 >> B10: What advantages or disadvantages can you see to your design
 >> for file descriptors?
 
 Each process has a list of file_descriptors. The clear disadvantage of this is that space is wasted as if there was only one universal list then less memory would be wasted with extra and unnecessary pointers.
 
-However, there is an advantage to this method as its easier to just allocate an fd to a file as its needed rather than allocating an fd to all files at the start before any process is even started.
+However, there is an advantage to this method as its easier to just allocate an fd to a file as its needed rather than allocating an fd to all files at the start before any process is even started. Also a rogue process will not be able just write or read to a file with a randomly passed in fd if it has not yet opened the file.
 
 >> B11: The default tid_t to pid_t mapping is the identity mapping.
 >> If you changed it, what advantages are there to your approach?
@@ -244,7 +251,7 @@ None of the guidance we received was misleading.
 >> Do you have any suggestions for the TAs to more effectively assist
 >> students, either for future quarters or the remaining tasks?
 
-We did not ask for any help from the TAs, other than a question on blackboard about how to correctly "push" to a new process's stack and what address to use.
+We did not ask for any help from the TAs, other than a question on blackboard about how to correctly "push" to a new process's stack and what address to use, which was in itself quite a useful tool to have at our disposal.
 
 >> Any other comments?
 

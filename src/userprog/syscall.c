@@ -259,6 +259,7 @@ syscall_write(uint32_t* eax, int fd, const void *buffer, unsigned int size)
       lock_acquire(&filesys_lock);
       write_size = (int)file_write(file, buffer, size);
       lock_release(&filesys_lock);
+      
       syscall_return_int(eax, write_size);
     }
   }
