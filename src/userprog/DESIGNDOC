@@ -212,7 +212,7 @@ We ensure that all of a dead processes rescources are freed by making all parent
 >> B9: Why did you choose to implement access to user memory from the
 >> kernel in the way that you did?
 
-Before every time we dereference a pointer to user memory we check its safe using is_safe_ptr(), which follows the conditions stated in the spec to guarantee a pointer is safe. Then just dereference it, accessing all user memory from addresses returned from the interrupt_frame. We chose this method because it was the simplest one, allowing us to safely assume that when the is_safe_ptr() method returns true, that address is safe to access. 
+Before every time we dereference a pointer to user memory we check its safe using is_safe_ptr(), which follows the conditions stated in the spec to guarantee a pointer is safe. Then just dereference it, accessing all user memory from addresses returned from the interrupt_frame. We chose this method because it was the simplest one, allowing us to safely assume that when the is_safe_ptr() method returns true, that address is safe to access.
 
 >> B10: What advantages or disadvantages can you see to your design
 >> for file descriptors?
@@ -243,7 +243,7 @@ They were all fairly hard, although altogether it took less time and was probabl
 >> Did you find that working on a particular part of the assignment gave
 >> you greater insight into some aspect of OS design?
 
-The system call aspect of the assignment gave us a huge insight into how operating systems and userprograms have to interact in order to acheive their goals.
+The system call aspect of the assignment gave us a huge insight into how operating systems and user programs have to interact in order to acheive their goals.
 
 >> Is there some particular fact or hint we should give students in
 >> future quarters to help them solve the problems?  Conversely, did you
