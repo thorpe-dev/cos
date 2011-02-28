@@ -20,7 +20,7 @@ struct arg_elem
 {
   char argument[128];
   int length;
-  uint32_t* location;
+  char* location;
   struct list_elem elem;
 };
 
