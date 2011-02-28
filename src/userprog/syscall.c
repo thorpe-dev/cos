@@ -292,11 +292,12 @@ syscall_read(uint32_t* eax, int fd, void* buffer, unsigned int size)
   
   check_buffer_safety(buffer, size);
   
-  int read_size;
   struct file* file;
+  int read_size = 0;
+  
   /* If fd is 0, read from console */
   if (fd == 0) {
-    read_size = 0;
+
     while ((unsigned int)read_size < size) {
       *(char*)buffer = input_getc();
       read_size++;
