@@ -168,22 +168,21 @@ process_exit (void)
   
   printf ("%s: exit(%d)\n",cur->name, cur->process->exit_status);
   lock_acquire(&filesys_lock);
+  
   file_close(cur->process->process_file);
-  lock_release(&filesys_lock);
-
+  
   uint32_t *pd;
   
   e = list_begin (&cur->process->open_files);
-
+  
   /* Closes this process's open files */
   while ( e != list_end (&cur->process->open_files))
   {
     file = list_entry(e, struct file, elem);
     e = list_next (e);
-    lock_acquire(&filesys_lock);
     file_close(file);
-    lock_release(&filesys_lock);
   }
+  lock_release(&filesys_lock);
 
   /* Wait for our children to die and free their memory - process_wait frees 
      the memory for the children's process structs */
@@ -323,10 +322,10 @@ load (char* command, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
-  /* Open executable file and deny write access. */
+  /* Open executable file and deny write access. This lock is held open for some time. */
   lock_acquire(&filesys_lock);
+  
   file = filesys_open(t->name);
-  lock_release(&filesys_lock);
 
   if (file == NULL) 
     {
@@ -335,10 +334,8 @@ load (char* command, void (**eip) (void), void **esp)
     }
 
   t->process->process_file = file;
-  
-  lock_acquire(&filesys_lock);
+    
   file_deny_write(file);
-  lock_release(&filesys_lock);
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -352,7 +349,7 @@ load (char* command, void (**eip) (void), void **esp)
       printf ("load: %s: error loading executable\n", t->name);
       goto done; 
     }
-
+    
   /* Read program headers. */
   file_ofs = ehdr.e_phoff;
   for (i = 0; i < ehdr.e_phnum; i++) 
@@ -411,12 +408,11 @@ load (char* command, void (**eip) (void), void **esp)
           break;
         }
     }
+    
 
   /* Set up stack. */
   if (!setup_stack (esp, command)) {
-    lock_acquire(&filesys_lock);
     file_close(file);
-    lock_release(&filesys_lock);
     goto done;
   }
 
@@ -426,10 +422,11 @@ load (char* command, void (**eip) (void), void **esp)
   success = true;
 
  done:
-  /* We arrive here whether the load is successful or not. */
+  /* We arrive here whether the load is successful or not. Unlock file system. */
+  lock_release(&filesys_lock);
   return success;
 }
-
+
 /* load() helpers. */
 
 static bool install_page (void *upage, void *kpage, bool writable);
@@ -442,10 +439,12 @@ validate_segment (const struct Elf32_Phdr *phdr, struct file *file)
   /* p_offset and p_vaddr must have the same page offset. */
   if ((phdr->p_offset & PGMASK) != (phdr->p_vaddr & PGMASK)) 
     return false; 
-
+  
   /* p_offset must point within FILE. */
   if (phdr->p_offset > (Elf32_Off) file_length (file)) 
     return false;
+
+
 
   /* p_memsz must be at least as big as p_filesz. */
   if (phdr->p_memsz < phdr->p_filesz) 
