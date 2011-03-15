@@ -30,6 +30,7 @@ static void syscall_write (uint32_t* eax, int fd, const void* buffer, unsigned s
 static void syscall_seek  (int fd, unsigned int position);
 static void syscall_tell  (uint32_t* eax, int fd);
 static void syscall_close (int fd);
+static void syscall_mmap  (uint32_t* eax, int fd, void* addr);
 
 static void check_safe_ptr (const void* ptr, int no_args);
 static void check_buffer_safety (const void* buffer, int size);
@@ -38,6 +39,8 @@ static void syscall_return_int    (uint32_t* eax, const int value);
 static void syscall_return_pid_t  (uint32_t* eax, const pid_t value);
 static void syscall_return_bool   (uint32_t* eax, const bool value);
 static void syscall_return_uint   (uint32_t* eax, const unsigned value);
+static void syscall_return_mapid_t (uint32_t* eax, const mapid_t value);
+
 
 static struct file* find_file (int fd);
 
@@ -127,6 +130,14 @@ syscall_handler (struct intr_frame *f)
     case SYS_CLOSE: 
       check_safe_ptr (argument_1, 1);
       syscall_close(*(int*)argument_1); 
+      break;
+      
+    case SYS_MMAP:
+      check_safe_ptr (argument_1, 2);
+      syscall_mmap(eax, *(int*)argument_1, *(void**)argument_2);
+      break;
+      
+    case SYS_MUNMAP:
       break;
       
     default: 
@@ -389,6 +400,31 @@ syscall_close (int fd)
 
 }
 
+/* Started skeleton function for memory mapping */
+static void 
+syscall_mmap  (uint32_t* eax, int fd, void* addr)
+{
+  mapid_t value;
+  struct file* file;
+  value = -1;
+  
+  if (((int)addr % PGSIZE != 0)
+    && ((int)addr == 0)
+    && (fd <= 1))
+    goto done;
+  
+  file = find_file ( fd );
+  if (file == NULL)
+    goto done;
+  if (file_length(file) == 0)
+    goto done;
+  
+  
+  
+  done:
+    syscall_return_mapid_t(eax, value);
+}
+
 /* --- Syscall return methods ---*/
 
 static void
@@ -411,6 +447,12 @@ syscall_return_bool (uint32_t* eax, const bool value)
 
 static void
 syscall_return_uint (uint32_t* eax, const unsigned value)
+{
+  *eax = value;
+}
+
+static void
+syscall_return_mapid_t (uint32_t* eax, const mapid_t value)
 {
   *eax = value;
 }
