@@ -408,21 +408,30 @@ syscall_mmap  (uint32_t* eax, int fd, void* addr)
   struct file* file;
   value = -1;
   
-  if (((int)addr % PGSIZE != 0)
-    && ((int)addr == 0)
-    && (fd <= 1))
-    goto done;
+  if (((int)addr % PGSIZE == 0)
+    && ((int)addr != 0)
+    && (fd > 1))
+  {
+    file = find_file ( fd );
+    lock_acquire(&filesys_lock);
+    if (file == NULL
+      && file_length(file) == 0) 
+    {
+      lock_release(&filesys_lock);
+    }
+    
+    else
+    { /* Map file into memory here*/
+      
+      
+      
+      
+      lock_release(&filesys_lock);
+    }
+  }   
   
-  file = find_file ( fd );
-  if (file == NULL)
-    goto done;
-  if (file_length(file) == 0)
-    goto done;
   
-  
-  
-  done:
-    syscall_return_mapid_t(eax, value);
+  syscall_return_mapid_t(eax, value);
 }
 
 /* --- Syscall return methods ---*/
