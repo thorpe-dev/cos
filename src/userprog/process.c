@@ -409,11 +409,9 @@ load (char* command, void (**eip) (void), void **esp)
         }
     }
     
-
   /* Set up stack. */
-  if (!setup_stack (esp, command)) {
+  if (!setup_stack (esp, command))
     goto done;
-  }
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
