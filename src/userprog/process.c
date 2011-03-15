@@ -412,7 +412,6 @@ load (char* command, void (**eip) (void), void **esp)
 
   /* Set up stack. */
   if (!setup_stack (esp, command)) {
-    file_close(file);
     goto done;
   }
 
