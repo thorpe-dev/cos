@@ -14,6 +14,10 @@ void process_activate (void);
 
 /* Process identifier - same as in lib/user/syscall.h */
 typedef int pid_t;
+
+/* Memory map identifier - same as in lib/user/syscall.h */
+typedef int mapid_t;
+
 #define PID_ERROR ((pid_t) -1)
 
 struct arg_elem
