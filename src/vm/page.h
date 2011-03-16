@@ -10,7 +10,7 @@
 struct page {
   
   uint8_t* upage;
-  uint32_t* page_addr;
+  uint8_t* kpage;
   uint32_t* read_bytes;
   uint32_t* zero_bytes;
   bool writable;
@@ -36,6 +36,7 @@ struct sup_table* page_table_init (void);
 bool page_table_add (struct page* p, struct sup_table* table);
 bool page_table_remove (struct page* p, struct sup_table* table);
 struct page* page_table_find (struct page* p, struct sup_table* table);
+bool add_page (uint8_t* kpage, uint8_t* upage, bool writable, struct sup_table* table);
 
 
 

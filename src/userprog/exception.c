@@ -6,13 +6,16 @@
 #include "threads/thread.h"
 #include "vm/page.h"
 #include "threads/vaddr.h"
+#include "threads/palloc.h"
+#include <stdint.h>
+#include "userprog/process.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
 
 static void kill (struct intr_frame *);
 static void page_fault (struct intr_frame *);
-static void page_fault_error_msg (void* fault_addr, bool not_present, bool write, bool user);
+static void page_fault_error (struct intr_frame *f, void* fault_addr, bool not_present, bool write, bool user);
 /* Registers handlers for interrupts that can be caused by user
    programs.
 
@@ -129,7 +132,10 @@ page_fault (struct intr_frame *f)
   bool user;          /* True: access by user, false: access by kernel. */
   void* fault_addr;   /* Fault address. */
   void* stack_pointer; /* Stack pointer */
-  struct sup_table* t = thread_current()->process->page_table;  /* Current thread */
+  uint8_t* kpage;
+  struct sup_table* page_table;  /* Current thread */
+  
+  
 
   /* Obtain faulting address, the virtual address that was
      accessed to cause the fault.  It may point to code or to
@@ -154,12 +160,24 @@ page_fault (struct intr_frame *f)
   
   /* If address is read-only or in kernel space, kill f */
   if (write || !is_user_vaddr(fault_addr)) {
-    page_fault_error_msg(fault_addr, not_present, write, user);
-    kill(f);
-    return;
+    page_fault_error(f, fault_addr, not_present, write, user);
   }
   
   if (not_present) {
+    stack_pointer = f->esp;
+    
+    /* Check if just below stack pointer */
+    if ((int)stack_pointer - (int)fault_addr <= 32) {
+      kpage = palloc_get_page(PAL_USER);
+      /* Try to grow stack */
+      if (kpage == NULL || !install_page(fault_addr, kpage, true))
+        page_fault_error(f, fault_addr, not_present, write, user);
+      
+      page_table = thread_current()->process->page_table;
+      /* Add the new page to the page table */
+      add_page(kpage, (uint8_t*)((uint32_t)fault_addr- (uint32_t)fault_addr % PGSIZE), 
+               true, page_table);
+    }
     
     
     
@@ -178,12 +196,14 @@ page_fault (struct intr_frame *f)
 }
 
 static void
-page_fault_error_msg (void* fault_addr, bool not_present, bool write, bool user)
+page_fault_error (struct intr_frame *f, void* fault_addr, bool not_present, 
+                      bool write, bool user)
 {
   printf ("Page fault at %p: %s error %s page in %s context.\n",
           fault_addr,
           not_present ? "not present" : "rights violation",
           write ? "writing" : "reading",
           user ? "user" : "kernel");  
+  kill(f);
 }
 

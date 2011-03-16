@@ -52,6 +52,19 @@ page_table_find (struct page* p, struct sup_table* table)
   return (hash_entry (elem, struct page, elem));
 }
 
+bool
+add_page (uint8_t* kpage, uint8_t* upage, bool writable, struct sup_table* table)
+{
+  struct page* page;
+  
+  page = malloc(sizeof(struct page));
+  
+  page->upage = upage;
+  page->kpage = kpage;
+  page->writable = writable;
+  
+  page_table_add(page, table);  
+}
 
 
 
@@ -63,8 +76,8 @@ page_table_find (struct page* p, struct sup_table* table)
 static bool
 page_less (const struct hash_elem* p1, const struct hash_elem* p2, void* aux UNUSED)
 {
-  uint32_t* page_1 = hash_entry (p1, struct page, elem)->page_addr;
-  uint32_t* page_2 = hash_entry (p2, struct page, elem)->page_addr;
+  uint8_t* page_1 = hash_entry (p1, struct page, elem)->upage;
+  uint8_t* page_2 = hash_entry (p2, struct page, elem)->upage;
   
   return page_1 < page_2;
 }
@@ -72,7 +85,7 @@ page_less (const struct hash_elem* p1, const struct hash_elem* p2, void* aux UNU
 static unsigned
 page_hash (const struct hash_elem* elem, void* aux UNUSED)
 {
-  uint32_t* page_addr = hash_entry(elem, struct page, elem)->page_addr;
+  uint8_t* page_addr = hash_entry(elem, struct page, elem)->upage;
   
   return hash_int((uint32_t)page_addr);  
 }
