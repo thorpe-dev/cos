@@ -7,6 +7,7 @@
 #include "vm/page.h"
 #include "threads/vaddr.h"
 #include "threads/palloc.h"
+#include "userprog/pagedir.h"
 #include <stdint.h>
 #include "userprog/process.h"
 
@@ -132,9 +133,11 @@ page_fault (struct intr_frame *f)
   bool user;          /* True: access by user, false: access by kernel. */
   void* fault_addr;   /* Fault address. */
   void* stack_pointer; /* Stack pointer */
+  uint8_t* upage;
   uint8_t* kpage;
-  struct sup_table* page_table;  /* Current thread */
-  
+  struct page* page;
+  struct sup_table* t;  /* Page table */
+    
   
 
   /* Obtain faulting address, the virtual address that was
@@ -164,23 +167,36 @@ page_fault (struct intr_frame *f)
   }
   
   if (not_present) {
+    
     stack_pointer = f->esp;
+    
+    /* If the stack pointer is not safe, kill the process */
+    if (!is_safe_ptr(stack_pointer))
+      page_fault_error (f, fault_addr, not_present, write, user);
+    
+    upage = (uint8_t*)((uint32_t)fault_addr- (uint32_t)fault_addr % PGSIZE);
+    t = thread_current()->process->page_table;
+    page = page_find(upage, t);
     
     /* Check if just below stack pointer */
     if ((int)stack_pointer - (int)fault_addr <= 32) {
+      
+      /* If the address will grow the stack beyond the max size, kill the process */
+      if (fault_addr < MAX_STACK_ADDRESS)
+        page_fault_error (f, fault_addr, not_present, write, user);
+      
+      
       kpage = palloc_get_page(PAL_USER);
-      /* Try to grow stack */
+      /* Try to grow stack - if you can't grow it, kill the process */
       if (kpage == NULL || !install_page(fault_addr, kpage, true))
         page_fault_error(f, fault_addr, not_present, write, user);
       
-      page_table = thread_current()->process->page_table;
       /* Add the new page to the page table */
-      add_page(kpage, (uint8_t*)((uint32_t)fault_addr- (uint32_t)fault_addr % PGSIZE), 
-               true, page_table);
+      add_page(kpage, upage, true, t);
     }
-    
-    
-    
+    else if (true)
+      kill(f);
+        
   }
   
   

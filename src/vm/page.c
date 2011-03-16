@@ -66,6 +66,19 @@ add_page (uint8_t* kpage, uint8_t* upage, bool writable, struct sup_table* table
   page_table_add(page, table);  
 }
 
+struct page*
+page_find (uint8_t* upage, struct sup_table* sup)
+{
+  struct page* page;
+  page = malloc(sizeof(struct page));
+  
+  page->upage = upage;
+  
+  page = hash_find(&sup->page_table, &page->elem);
+  
+  return page;
+}
+
 
 
 
@@ -87,5 +100,5 @@ page_hash (const struct hash_elem* elem, void* aux UNUSED)
 {
   uint8_t* page_addr = hash_entry(elem, struct page, elem)->upage;
   
-  return hash_int((uint32_t)page_addr);  
+  return hash_int((uint32_t)page_addr);
 }
