@@ -511,7 +511,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
       /* Get a page of memory. */
       uint8_t *kpage = palloc_get_page (PAL_USER);
-      printf("kpage = %X\n", (uint32_t)kpage);
       if (kpage == NULL)
         return false;
 
