@@ -1,6 +1,7 @@
 #include "frame.h"
 #include "threads/malloc.h"
 #include "threads/vaddr.h"
+#include "threads/thread.h"
 
 // TODO: Remove (debug)
 #include <stdio.h>
@@ -30,6 +31,7 @@ frame_add(int frame_index, void* page_location, int count)
   {
     printf("Frame Table: Adding frame %d\n", frame_index+count);
     table[frame_index+count].page_location = (page_location + count*PGSIZE);
+    table[frame_index+count].owner = thread_current();
   }
   lock_release(&lock);
 }
@@ -42,6 +44,7 @@ frame_del(int frame_index, int count)
   {
     printf("Frame Table: Removing frame %d\n", frame_index+count);
     table[frame_index+count].page_location = NULL;
+    table[frame_index+count].owner = NULL;
   }
   lock_release(&lock);
 }
