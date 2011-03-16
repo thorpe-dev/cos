@@ -175,7 +175,7 @@ page_fault (struct intr_frame *f)
       page_fault_error (f, fault_addr, not_present, write, user);
     
     upage = (uint8_t*)((uint32_t)fault_addr- (uint32_t)fault_addr % PGSIZE);
-    t = thread_current()->process->page_table;
+    t = thread_current()->process->sup_table;
     page = page_find(upage, t);
     
     /* Check if just below stack pointer */
