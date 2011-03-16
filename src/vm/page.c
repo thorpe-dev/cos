@@ -43,6 +43,23 @@ page_table_remove (struct page* p, struct sup_table* table)
   return success;
 }
 
+struct page*
+page_table_find (struct page* p, struct sup_table* table)
+{
+  struct hash_elem* elem;
+  elem = hash_find (&table->page_table, &p->elem);
+    
+  return (hash_entry (elem, struct page, elem));
+}
+
+
+
+
+
+
+
+/* Hash table functions */
+
 static bool
 page_less (const struct hash_elem* p1, const struct hash_elem* p2, void* aux UNUSED)
 {

@@ -11,7 +11,9 @@
 #include "filesys/file.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "threads/palloc.h"
 #include "devices/input.h"
+#include <string.h>
 
 #define MAXCHAR 512
 
@@ -395,7 +397,6 @@ syscall_close (int fd)
     list_remove(&file->elem);
     file_close(file);
     lock_release(&filesys_lock);
-    
   }
 
 }
@@ -406,6 +407,11 @@ syscall_mmap  (uint32_t* eax, int fd, void* addr)
 {
   mapid_t value;
   struct file* file;
+  int read_bytes;
+  uint8_t* kpage;
+  size_t page_read_bytes;
+  size_t page_zero_bytes;
+  read_bytes = 0;
   value = -1;
   
   if (((int)addr % PGSIZE == 0)
@@ -422,10 +428,41 @@ syscall_mmap  (uint32_t* eax, int fd, void* addr)
     
     else
     { /* Map file into memory here*/
+      read_bytes = file_length(file);
       
-      
-      
-      
+      while (read_bytes > 0) {
+        size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+        size_t page_zero_bytes = PGSIZE - page_read_bytes;
+
+        /* Get a page of memory. */
+        kpage = palloc_get_page (PAL_USER);
+        if (kpage == NULL)
+          value = -1;
+        else {
+        /* Load this page. */
+          if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
+            {
+              palloc_free_page (kpage);
+              value = -1; 
+            }
+          else {
+            memset (kpage + page_read_bytes, 0, page_zero_bytes);
+
+            /* Add the page to the process's address space. */
+            /*if (!install_page (upage, kpage, writable)) 
+              {
+                palloc_free_page (kpage);
+                value= -1; 
+              }*/
+
+            /* Advance. */
+            read_bytes -= page_read_bytes;
+            //zero_bytes -= page_zero_bytes;
+            //upage += PGSIZE;
+            value = (mapid_t)kpage;
+          }
+        }
+      }
       lock_release(&filesys_lock);
     }
   }   

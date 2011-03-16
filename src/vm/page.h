@@ -14,7 +14,7 @@ struct page {
   uint32_t* read_bytes;
   uint32_t* zero_bytes;
   bool writable;
-  
+    
   bool in_memory;
   
   void* disk; /* This is wrong - figure out wtf block devices are */
@@ -26,6 +26,8 @@ struct page {
 struct sup_table {
   
   struct hash page_table;
+  struct process* page_owner;
+
   
 };
 
@@ -33,6 +35,7 @@ struct sup_table {
 struct sup_table* page_table_init (void);
 bool page_table_add (struct page* p, struct sup_table* table);
 bool page_table_remove (struct page* p, struct sup_table* table);
+struct page* page_table_find (struct page* p, struct sup_table* table);
 
 
 
