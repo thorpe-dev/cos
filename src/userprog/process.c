@@ -93,7 +93,10 @@ start_process (void *process_)
 
   /* Set current thread's process descriptor to the one passed to us */
   thread->process = process;
-
+  
+  /* Initialise the processes Supplemental page table*/
+  page_table_init(process->sup_table);
+  
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -109,8 +112,6 @@ start_process (void *process_)
   process->pid = thread->tid;
   process->load_success = success;
   
-  process->page_table = page_table_init();
-
   /* Signal load complete */
   sema_up(&process->load_complete);
 
@@ -478,20 +479,10 @@ validate_segment (const struct Elf32_Phdr *phdr, struct file *file)
   return true;
 }
 
-/* Loads a segment starting at offset OFS in FILE at address
-   UPAGE.  In total, READ_BYTES + ZERO_BYTES bytes of virtual
-   memory are initialized, as follows:
-
-        - READ_BYTES bytes at UPAGE must be read from FILE
-          starting at offset OFS.
-
-        - ZERO_BYTES bytes at UPAGE + READ_BYTES must be zeroed.
-
-   The pages initialized by this function must be writable by the
-   user process if WRITABLE is true, read-only otherwise.
-
-   Return true if successful, false if a memory allocation error
-   or disk read error occurs. */
+/* Conceptually loads a segment starting at offset OFS in FILE at address
+   UPAGE by adding in total (READ_BYTES + ZERO_BYTES)/PGSIZE pages of virtual
+   memory to the processes sup_table.
+   Saving READ_BYTES, ZERO_BYTES, OFS, WRITABLE, to each page.*/
 static bool
 load_segment (struct file *file, off_t ofs, uint8_t *upage,
               uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
@@ -500,42 +491,89 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
 
-  file_seek (file, ofs);
+  struct page* page;
+  struct sup_table* sup_table = thread_current()->process->sup_table;
+  
   while (read_bytes > 0 || zero_bytes > 0) 
     {
+
       /* Calculate how to fill this page.
-         We will read PAGE_READ_BYTES bytes from FILE
-         and zero the final PAGE_ZERO_BYTES bytes. */
+      We will read PAGE_READ_BYTES bytes from FILE
+      and zero the final PAGE_ZERO_BYTES bytes. */
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-      /* Get a page of memory. */
-      uint8_t *kpage = palloc_get_page (PAL_USER);
-      if (kpage == NULL)
-        return false;
+      /*Allocate memory for the page struct and initialise it*/
+      page = malloc(sizeof(struct page));
+      page->upage = upage;
+      page->ofs = ofs;
+      page->kpage = NULL; //kpage is yet to be mapped
+      page->read_bytes = page_read_bytes;
+      page->zero_bytes = page_zero_bytes;
+      page->writable = writable;
+      page->loaded = false;
+      /*File not given because a process has a pointer to its executable file */
+      /****************************/
 
-      /* Load this page. */
-      if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
-        {
-          palloc_free_page (kpage);
-          return false; 
-        }
-      memset (kpage + page_read_bytes, 0, page_zero_bytes);
-
-      /* Add the page to the process's address space. */
-      if (!install_page (upage, kpage, writable)) 
-        {
-          palloc_free_page (kpage);
-          return false; 
-        }
+      /*Add this page to the page table */
+      page_table_add(page,sup_table);
 
       /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
+      ofs += PGSIZE;
     }
+    
   return true;
 }
+
+/* Loads a single page starting at offset OFS in FILE at address
+   UPAGE. A page of virtual memory is initialized, as follows:
+
+        - READ_BYTES bytes at UPAGE must be read from FILE
+          starting at offset OFS.
+
+        - ZERO_BYTES bytes at UPAGE + READ_BYTES must be zeroed.
+
+   The page initialized by this function must be writable by the
+   user process if WRITABLE is true, read-only otherwise.
+
+   Return true if successful, false if a memory allocation error
+   or disk read error occurs. */
+bool
+load_page(struct file *file, off_t ofs, uint8_t *upage,
+              uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
+{
+  ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
+  ASSERT (pg_ofs (upage) == 0);
+  ASSERT (ofs % PGSIZE == 0);
+
+  file_seek (file, ofs);
+
+  /* Get a page of memory. */  
+  uint8_t *kpage = palloc_get_page (PAL_USER);
+  if (kpage == NULL)
+    return false;
+
+  /* Load this page. */
+  if (file_read (file, kpage, read_bytes) != (int) read_bytes)
+  {
+    palloc_free_page (kpage);
+    return false;
+  }
+  memset (kpage + read_bytes, 0, zero_bytes);
+
+  /* Add the page to the process's address space. */
+  if (!install_page (upage, kpage, writable)) 
+  {
+    palloc_free_page (kpage);
+    return false; 
+  }
+
+  return true;
+}
+
 
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
