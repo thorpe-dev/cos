@@ -132,6 +132,7 @@ page_fault (struct intr_frame *f)
   bool write;         /* True: access was write, false: access was read. */
   bool user;          /* True: access by user, false: access by kernel. */
   void* fault_addr;   /* Fault address. */
+  
   void* stack_pointer; /* Stack pointer */
   uint8_t* upage;
   uint8_t* kpage;
@@ -161,8 +162,8 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
   
-  /* If address is read-only or in kernel space, kill f */
-  if (write || !is_user_vaddr(fault_addr)) {
+  /* If address is in kernel space, kill f */
+  if (!is_user_vaddr(fault_addr)) {
     page_fault_error(f, fault_addr, not_present, write, user);
   }
   
@@ -174,33 +175,45 @@ page_fault (struct intr_frame *f)
     if (!is_safe_ptr(stack_pointer))
       page_fault_error (f, fault_addr, not_present, write, user);
     
+    /* Getting lower address of page */
     upage = (uint8_t*)((uint32_t)fault_addr- (uint32_t)fault_addr % PGSIZE);
+    /* Get page table from process */
     t = thread_current()->process->page_table;
+    /* Find page in page table */
     page = page_find(upage, t);
     
-    /* Check if just below stack pointer */
-    if ((int)stack_pointer - (int)fault_addr <= 32) {
+    /* The page should be there, but isn't - has been swapped out */
+    if (page != NULL) {
+      /* If page access was write and page is marked read only - kill the process */
+      if (write && !page->writable)
+        page_fault_error(f, fault_addr, not_present, write, user);
+      /*
+      TODO: get frame
+      TODO: fetch data into frame
+      TODO: point page table entry to physical address      
+      */
+    }
+    
+    /* Or check if just below stack pointer */
+    else if ((int)stack_pointer - (int)fault_addr <= 32) {
       
       /* If the address will grow the stack beyond the max size, kill the process */
       if (fault_addr < MAX_STACK_ADDRESS)
         page_fault_error (f, fault_addr, not_present, write, user);
       
-      
+      /* Get a user page */
       kpage = palloc_get_page(PAL_USER);
+      
       /* Try to grow stack - if you can't grow it, kill the process */
       if (kpage == NULL || !install_page(fault_addr, kpage, true))
         page_fault_error(f, fault_addr, not_present, write, user);
       
       /* Add the new page to the page table */
       add_page(kpage, upage, true, t);
-    }
-    else if (page != NULL) {
-      get_page_
-    }
-    
+    }    
     
     else
-      kill(f);
+      page_fault_error(f, fault_addr, not_present, write, user);
         
   }
   
