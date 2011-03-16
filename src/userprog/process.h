@@ -46,11 +46,7 @@ struct process
   struct list open_files;           /* List of files the process has open */
   int next_fd;                      /* Used for generating file descriptors*/
   struct file* process_file;        /* The current process's executable */
-<<<<<<< HEAD
-  struct sup_table* sup_table; /* Hash table of pages */
-=======
-  struct sup_table* page_table;     /* Hash table of pages */
->>>>>>> b87d5644d883ba03a43b560e6ca117cd9f03758c
+  struct sup_table* sup_table;     /* Hash table of pages */
 };
 
 
