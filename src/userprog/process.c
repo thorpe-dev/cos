@@ -19,6 +19,7 @@
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
 
+
 static thread_func start_process NO_RETURN;
 static bool load (char *command, void (**eip) (void), void **esp);
 
@@ -107,6 +108,8 @@ start_process (void *process_)
   process->command = thread->name;
   process->pid = thread->tid;
   process->load_success = success;
+  
+  process->page_table = page_table_init();
 
   /* Signal load complete */
   sema_up(&process->load_complete);

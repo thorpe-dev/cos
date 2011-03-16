@@ -3,6 +3,7 @@
 
 #include "threads/thread.h"
 #include "threads/synch.h"
+#include "vm/page.h"
 
 #define EXIT_SUCCESS 0
 #define EXIT_FAILURE -1
@@ -30,16 +31,17 @@ struct arg_elem
 
 struct process
 {
-  char* command;                  /* Command for use when loading process/thread */
-  bool load_success;              /* Used with load_complete */
-  struct semaphore load_complete; /* Ensures load is complete before process_execute() finishes */
-  int exit_status;                /* Process exit status initialised to EXIT_FAILURE */
-  struct semaphore exit_complete; /* Used in process_wait() */
-  pid_t pid;                      /* Process pid */
-  struct list_elem child_elem;    /* So it can be made a child of another processes thread*/
-  struct list open_files;         /* List of files the process has open */
-  int next_fd;                    /* Used for generating file descriptors*/
-  struct file* process_file;      /* The current process's executable */
+  char* command;                    /* Command for use when loading process/thread */
+  bool load_success;                /* Used with load_complete */
+  struct semaphore load_complete;   /* Ensures load is complete before process_execute() finishes */
+  int exit_status;                  /* Process exit status initialised to EXIT_FAILURE */
+  struct semaphore exit_complete;   /* Used in process_wait() */
+  pid_t pid;                        /* Process pid */
+  struct list_elem child_elem;      /* So it can be made a child of another processes thread*/
+  struct list open_files;           /* List of files the process has open */
+  int next_fd;                      /* Used for generating file descriptors*/
+  struct file* process_file;        /* The current process's executable */
+  struct sup_page_table* page_table; /* Hash table of pages */
 };
 
 
