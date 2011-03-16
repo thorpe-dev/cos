@@ -177,13 +177,9 @@ page_fault (struct intr_frame *f)
     
     /* Getting lower address of page */
     upage = (uint8_t*)((uint32_t)fault_addr- (uint32_t)fault_addr % PGSIZE);
-<<<<<<< HEAD
     /* Get page table from process */
-    t = thread_current()->process->page_table;
-    /* Find page in page table */
-=======
     t = thread_current()->process->sup_table;
->>>>>>> c1efe50cb7148ef9041ddaf76fb0e2e68c197460
+    /* Find page in page table */
     page = page_find(upage, t);
     
     /* The page should be there, but isn't - has been swapped out */
