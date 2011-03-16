@@ -1,40 +1,61 @@
 #include "vm/page.h"
+#include <hash.h>
 #include "threads/malloc.h"
 
-static bool page_table_add (struct page* p, struct sup_page_table* table);
-static void page_table_remove (struct page* p, struct sup_page_table* table);
+static bool page_less (const struct hash_elem* p1, const struct hash_elem* p2, void* aux);
+static unsigned page_hash (const struct hash_elem* elem, void* aux);
 
-struct sup_page_table*
+
+struct sup_table*
 page_table_init (void) 
 {
-  struct sup_page_table* ptr;
+  struct sup_table* ptr;
   
-  ptr = malloc(sizeof(struct sup_page_table));
-  
+  ptr = malloc(sizeof(struct sup_table));
+  if (ptr != NULL) {
+    hash_init(&ptr->page_table, page_hash, page_less, NULL);
+  }
   return ptr;
 }
 
 
-static bool
-page_table_add (struct page* p, struct sup_page_table* table)
+bool
+page_table_add (struct page* p, struct sup_table* table)
 {
   bool success;
-  struct list* list;
   success = false;
   
-  list = find_bucket (table->page_table, p->elem);
-  if (list != NULL) {
-    insert_elem (table->page_table, list, p->elem);
+  if (hash_insert (&table->page_table, &p->elem) == NULL)
     success = true;
-  }
-  
   
   return success;
 }
 
 
-static void
-page_table_remove (struct page* p, struct sup_page_table* table)
+bool
+page_table_remove (struct page* p, struct sup_table* table)
 {
-  remove_elem (table->page_table, p->elem);  
+  bool success;
+  success = false;
+  if (hash_delete (&table->page_table, &p->elem) != NULL)
+    success = true;  
+  
+  return success;
+}
+
+static bool
+page_less (const struct hash_elem* p1, const struct hash_elem* p2, void* aux UNUSED)
+{
+  uint32_t* page_1 = hash_entry (p1, struct page, elem)->page_addr;
+  uint32_t* page_2 = hash_entry (p2, struct page, elem)->page_addr;
+  
+  return page_1 < page_2;
+}
+
+static unsigned
+page_hash (const struct hash_elem* elem, void* aux UNUSED)
+{
+  uint32_t* page_addr = hash_entry(elem, struct page, elem)->page_addr;
+  
+  return hash_int((uint32_t)page_addr);  
 }

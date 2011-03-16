@@ -98,6 +98,6 @@ bool hash_empty (struct hash *);
 /* Sample hash functions. */
 unsigned hash_bytes (const void *, size_t);
 unsigned hash_string (const char *);
-unsigned hash_int (int);
+unsigned hash_int (uint32_t);
 
 #endif /* lib/kernel/hash.h */

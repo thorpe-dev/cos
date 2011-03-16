@@ -9,7 +9,12 @@
 
 struct page {
   
-  uint32_t* page;
+  uint8_t* upage;
+  uint32_t* page_addr;
+  uint32_t* read_bytes;
+  uint32_t* zero_bytes;
+  bool writable;
+  
   bool in_memory;
   
   void* disk; /* This is wrong - figure out wtf block devices are */
@@ -18,13 +23,17 @@ struct page {
 
 };
 
-struct sup_page_table {
+struct sup_table {
   
   struct hash page_table;
   
 };
 
 
-struct sup_page_table* page_table_init (void);
+struct sup_table* page_table_init (void);
+bool page_table_add (struct page* p, struct sup_table* table);
+bool page_table_remove (struct page* p, struct sup_table* table);
+
+
 
 #endif

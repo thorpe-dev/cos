@@ -296,11 +296,11 @@ hash_string (const char *s_)
 
 /* Returns a hash of integer I. */
 unsigned
-hash_int (int i) 
+hash_int (uint32_t i) 
 {
   return hash_bytes (&i, sizeof i);
 }
-
+
 /* Returns the bucket in H that E belongs in. */
 static struct list *
 find_bucket (struct hash *h, struct hash_elem *e) 
