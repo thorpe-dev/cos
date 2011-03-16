@@ -194,7 +194,12 @@ page_fault (struct intr_frame *f)
       /* Add the new page to the page table */
       add_page(kpage, upage, true, t);
     }
-    else if (true)
+    else if (page != NULL) {
+      get_page_
+    }
+    
+    
+    else
       kill(f);
         
   }

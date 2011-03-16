@@ -79,11 +79,6 @@ page_find (uint8_t* upage, struct sup_table* sup)
   return page;
 }
 
-
-
-
-
-
 /* Hash table functions */
 
 static bool
