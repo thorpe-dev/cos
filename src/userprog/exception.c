@@ -212,6 +212,7 @@ page_fault (struct intr_frame *f)
       add_page(kpage, upage, true, t);
     }    
     
+    /* Else trying to access memory process isn't supposed to, kill the process */
     else
       page_fault_error(f, fault_addr, not_present, write, user);
         
