@@ -61,6 +61,8 @@ add_page (uint8_t* kpage, uint8_t* upage, bool writable, struct sup_table* table
   page->writable = writable;
   
   page_table_add(page, table);  
+  
+  return true;
 }
 
 struct page*
