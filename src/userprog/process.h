@@ -15,6 +15,9 @@ void process_exit (void);
 void process_activate (void);
 bool load_page(struct file *file, off_t ofs, uint8_t *upage, uint32_t read_bytes, uint32_t zero_bytes, bool writable);
 
+bool install_page (void *upage, void *kpage, bool writable);
+
+
 /* Process identifier - same as in lib/user/syscall.h */
 typedef int pid_t;
 
@@ -43,7 +46,11 @@ struct process
   struct list open_files;           /* List of files the process has open */
   int next_fd;                      /* Used for generating file descriptors*/
   struct file* process_file;        /* The current process's executable */
+<<<<<<< HEAD
   struct sup_table* sup_table; /* Hash table of pages */
+=======
+  struct sup_table* page_table;     /* Hash table of pages */
+>>>>>>> b87d5644d883ba03a43b560e6ca117cd9f03758c
 };
 
 

@@ -29,11 +29,16 @@ struct sup_table {
   
   struct process* process;
   struct hash page_table;
+
   
 };
 
 void page_table_init (struct sup_table* sup);
 bool page_table_add (struct page* p, struct sup_table* table);
 bool page_table_remove (struct page* p, struct sup_table* table);
+struct page* page_table_find (struct page* p, struct sup_table* table);
+bool add_page (uint8_t* kpage, uint8_t* upage, bool writable, struct sup_table* table);
+struct page* page_find (uint8_t* upage, struct sup_table* sup);
+
 
 #endif
