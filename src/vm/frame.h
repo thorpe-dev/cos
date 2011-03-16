@@ -2,6 +2,7 @@
 
 struct frame {
   void* page_location;
+  struct thread* owner;
   // TODO: Add extra information for eviction
 };
 

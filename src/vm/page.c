@@ -6,16 +6,13 @@ static bool page_less (const struct hash_elem* p1, const struct hash_elem* p2, v
 static unsigned page_hash (const struct hash_elem* elem, void* aux);
 
 
-struct sup_table*
-page_table_init (void) 
+void
+page_table_init (struct sup_table* sup) 
 {
-  struct sup_table* ptr;
-  
-  ptr = malloc(sizeof(struct sup_table));
-  if (ptr != NULL) {
-    hash_init(&ptr->page_table, page_hash, page_less, NULL);
+  sup = malloc(sizeof(struct sup_table));
+  if (sup != NULL) {
+    hash_init(&sup->page_table, page_hash, page_less, NULL);
   }
-  return ptr;
 }
 
 
