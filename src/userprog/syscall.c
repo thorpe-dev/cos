@@ -531,8 +531,13 @@ check_buffer_safety (const void* buffer, int size)
   int i;
   
   /* Check if buffer and if the end of the buffer are safe */
-  if ( !is_safe_ptr(buffer) || !is_safe_ptr(buffer + size))
+  if ( !is_safe_ptr(buffer) || !is_safe_ptr(buffer + size)) {
+    printf("buffer is unsafe\n");
+    printf ("buffer = %X\n", buffer);
+    printf ("buffer + size = %X\n", buffer + size);
+    printf ("is safe buffer = %d\n", is_safe_ptr(buffer));
     thread_exit();
+  }
   
   /* Check if at each PGSIZE interval the buffer is safe */
   for(i = 1; i <= size / PGSIZE ; i++)

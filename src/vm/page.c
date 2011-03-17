@@ -1,11 +1,17 @@
 #include "vm/page.h"
+#include "userprog/process.h"
 #include <hash.h>
 #include "threads/malloc.h"
 #include <stdio.h>
+#include "threads/vaddr.h"
+
 
 static bool page_less (const struct hash_elem* p1, const struct hash_elem* p2, void* aux);
 static unsigned page_hash (const struct hash_elem* elem, void* aux);
 static void page_free (struct hash_elem* e, void* aux);
+
+static void print_page (struct hash_elem* e, void* aux UNUSED);
+
 
 
 bool
@@ -32,6 +38,8 @@ page_table_add (struct page* p, struct sup_table* table)
 {
   bool success;
   success = false;
+  
+  printf("Adding page %X\n", p->upage);
   
   if (hash_insert (&table->page_table, &p->elem) == NULL)
     success = true;
@@ -61,14 +69,13 @@ page_table_find (struct page* p, struct sup_table* table)
 }
 
 bool
-add_page (uint8_t* kpage, uint8_t* upage, bool writable, struct sup_table* table)
+add_page (uint8_t* upage, bool writable, struct sup_table* table)
 {
   struct page* page;
   
   page = malloc(sizeof(struct page));
   
   page->upage = upage;
-  page->kpage = kpage;
   page->writable = writable;
   
   page_table_add(page, table);  
@@ -76,23 +83,37 @@ add_page (uint8_t* kpage, uint8_t* upage, bool writable, struct sup_table* table
   return true;
 }
 
-/* Unsure if this works */
 struct page*
 page_find (uint8_t* upage, struct sup_table* sup)
 {
-  struct page* page;
+  struct page page;
   struct page* return_value;
   struct hash_elem* value;
-  page = malloc(sizeof(struct page));
   
-  page->upage = upage;
   
-  value = hash_find(&sup->page_table, &page->elem);
+  page.upage = upage;
   
-  free(page);
+  value = hash_find(&sup->page_table, &page.elem);
+  if (value == 0)
+    return NULL;
   
   return_value = hash_entry(value, struct page, elem);
+
   return return_value;
+}
+
+uint32_t*
+lookup_sup_page(struct process* process, const void* vaddr)
+{
+  
+  struct sup_table* sup = process->sup_table;
+  
+  struct page* ptr = page_find((uint8_t*)vaddr, sup);
+  if (ptr != NULL)
+    return (uint32_t*)ptr->upage;
+  
+  return NULL;
+  
 }
 
 void
@@ -129,4 +150,29 @@ page_free (struct hash_elem* e, void* aux UNUSED)
   struct page* page = hash_entry(e, struct page, elem);
   free(page); 
   
+}
+
+/* Debug functions */
+
+static void
+print_page (struct hash_elem* e, void* aux UNUSED)
+{
+  struct page* page = hash_entry(e, struct page, elem);
+  
+  printf("Page addr = %X\n",page->upage);
+    
+}
+
+void
+debug_page_table (struct sup_table* sup)
+{
+  hash_apply (&sup->page_table,print_page);
+}
+
+
+void*
+lower_page_bound (void* vaddr) 
+{
+  return (void*)((uint32_t)vaddr - ((uint32_t)vaddr % PGSIZE));
+    
 }

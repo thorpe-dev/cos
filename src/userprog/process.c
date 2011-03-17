@@ -596,6 +596,7 @@ setup_stack (void **esp, char *command)
 {
   uint8_t *kpage;
   bool success = false;
+  uint8_t* base_of_stack;
 
   struct list arguments;
   struct list_elem* e = NULL;
@@ -610,8 +611,12 @@ setup_stack (void **esp, char *command)
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
-      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+      base_of_stack = ((uint8_t*) PHYS_BASE) - PGSIZE;
+      success = install_page (base_of_stack, kpage, true);
       if (success){
+        
+        add_page (base_of_stack, true, thread_current()->process->sup_table);
+
         ptr = base = (uint8_t*)kpage + PGSIZE;
 
         /* Add argument values and lengths to a list */

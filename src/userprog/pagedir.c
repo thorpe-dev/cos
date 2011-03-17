@@ -5,6 +5,8 @@
 #include "threads/init.h"
 #include "threads/pte.h"
 #include "threads/palloc.h"
+#include "threads/thread.h"
+#include "vm/page.h"
 
 static uint32_t *active_pd (void);
 static void invalidate_pagedir (uint32_t *);
@@ -269,14 +271,16 @@ is_safe_ptr(const void* vaddr)
 {
   uint32_t *ptr;
   
+  
   /*Check pointer not NULL and its not pointing to a kernel address*/
   if(vaddr == NULL || !is_user_vaddr (vaddr))
     return false;
-
+  
   /* Check pointer points to mapped space */
-  ptr = lookup_page (active_pd(), vaddr, false);
-  if(ptr == NULL || (*ptr & PTE_P) == 0)
+  ptr = lookup_sup_page (thread_current()->process, lower_page_bound(vaddr));
+  if (ptr == NULL || (*ptr & PTE_P) == 0)
     return false;
+  
  
   /*Otherwise the pointer is valid*/
   return true;
