@@ -29,7 +29,6 @@ frame_add(int frame_index, void* page_location, int count)
   lock_acquire(&lock);
   for(count--;count>=0;count--)
   {
-    printf("Frame Table: Adding frame %d\n", frame_index+count);
     table[frame_index+count].page_location = (page_location + count*PGSIZE);
     table[frame_index+count].owner = thread_current();
   }
@@ -42,7 +41,6 @@ frame_del(int frame_index, int count)
   lock_acquire(&lock);
   for(count--;count>=0;count--)
   {
-    printf("Frame Table: Removing frame %d\n", frame_index+count);
     table[frame_index+count].page_location = NULL;
     table[frame_index+count].owner = NULL;
   }

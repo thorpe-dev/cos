@@ -13,7 +13,7 @@ tid_t process_execute (const char *command);
 int process_wait (tid_t);
 void process_exit (void);
 void process_activate (void);
-bool load_page(struct file *file, off_t ofs, uint8_t *upage, uint32_t read_bytes, uint32_t zero_bytes, bool writable);
+uint8_t* load_page(struct file *file, off_t ofs, uint8_t *upage, uint32_t read_bytes, uint32_t zero_bytes, bool writable);
 
 bool install_page (void *upage, void *kpage, bool writable);
 
@@ -46,7 +46,7 @@ struct process
   struct list open_files;           /* List of files the process has open */
   int next_fd;                      /* Used for generating file descriptors*/
   struct file* process_file;        /* The current process's executable */
-  struct sup_table* sup_table;     /* Hash table of pages */
+  struct sup_table* sup_table;      /* Hash table of pages */
 };
 
 

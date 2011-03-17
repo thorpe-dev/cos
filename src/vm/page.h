@@ -18,9 +18,7 @@ struct page {
   bool writable;        /* Whether the page is writable or not */
   bool loaded;          /* Has the page been loaded yet - will not be before being mapped to a kpage*/
   bool in_memory;       /* If the page has been loaded is it mapped to a frame or swap */
-  
-  void* disk; /* This is wrong - figurupe out wtf block devices are */
-  
+    
   struct hash_elem elem;
 
 };
@@ -33,12 +31,15 @@ struct sup_table {
   
 };
 
-void page_table_init (struct sup_table* sup);
+bool page_table_init (struct sup_table* sup);
 bool page_table_add (struct page* p, struct sup_table* table);
 bool page_table_remove (struct page* p, struct sup_table* table);
 struct page* page_table_find (struct page* p, struct sup_table* table);
 bool add_page (uint8_t* kpage, uint8_t* upage, bool writable, struct sup_table* table);
 struct page* page_find (uint8_t* upage, struct sup_table* sup);
+
+void page_table_destroy(struct sup_table* sup);
+
 
 
 #endif
