@@ -18,16 +18,6 @@ bool
 page_table_init (struct sup_table* sup) 
 {
   bool success;
-  success = false;
-  //struct hash* hash;
-  //printf("sizeof sup_table %d\n size of hash %d\n", sizeof(struct sup_table), sizeof(struct hash));
-  
-  //hash = malloc(sizeof(struct hash));
-  
-  //if (hash == NULL)
-  //  return success;
-  
-  //sup->page_table = hash;
   success = hash_init(&sup->page_table, page_hash, page_less, NULL);
   return success;
 }
@@ -38,9 +28,7 @@ page_table_add (struct page* p, struct sup_table* table)
 {
   bool success;
   success = false;
-  
-  printf("Adding page %X\n", p->upage);
-  
+    
   if (hash_insert (&table->page_table, &p->elem) == NULL)
     success = true;
   

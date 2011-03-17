@@ -165,12 +165,10 @@ page_fault (struct intr_frame *f)
   
   sup = thread_current()->process->sup_table;
 
-  
-  debug_page_table(sup);
-  
+    
   /* If address is in kernel space or we got a kernel page fault, kill f */
   if (!is_user_vaddr(fault_addr) && user) {
-    printf("Address was either in kernel space or kernel page fault\n");
+    //printf("Address was either in kernel space or kernel page fault\n");
     page_fault_error(f, fault_addr, not_present, write, user);
   }
   
@@ -180,7 +178,7 @@ page_fault (struct intr_frame *f)
         
     /* If the stack pointer is not safe, kill the process */
     if (!is_safe_ptr(stack_pointer) && user) {
-      printf("Stack pointer wasn't safe\n");
+      //printf("Stack pointer wasn't safe\n");
       page_fault_error (f, fault_addr, not_present, write, user);
     }
     
@@ -198,7 +196,7 @@ page_fault (struct intr_frame *f)
       /* If page access was write and page is marked read only - kill the process */
       if (write && !page->writable) 
       {
-        printf("Page access was write and page is read-only\n");
+        //printf("Page access was write and page is read-only\n");
         page_fault_error(f, fault_addr, not_present, write, user);
       }
       
@@ -210,7 +208,7 @@ page_fault (struct intr_frame *f)
         
         if (kpage == NULL) 
         {
-          printf("Page failed to be found\n");
+          //printf("Page failed to be found\n");
           page_fault_error(f, fault_addr, not_present, write, user);
         }
         
@@ -227,18 +225,12 @@ page_fault (struct intr_frame *f)
         kpage = swap_in(page);
         /* If the page couldn't be found - kill the process */
         if (kpage == NULL) {
-          printf("Swapped out page couldn't be found\n");
+          //printf("Swapped out page couldn't be found\n");
           page_fault_error(f, fault_addr, not_present, write, user);
         }
         else
           page->kpage = kpage;
       }
-      
-      /*
-      TODO: get frame
-      TODO: fetch data into frame
-      TODO: point page table entry to physical address      
-      */
     }
     
     /* Or check if just below stack pointer */
@@ -246,7 +238,7 @@ page_fault (struct intr_frame *f)
       
       /* If the address will grow the stack beyond the max size, kill the process */
       if (fault_addr < MAX_STACK_ADDRESS) {
-        printf("Stack has grown too large\n");
+        //printf("Stack has grown too large\n");
         page_fault_error (f, fault_addr, not_present, write, user);
       }
       
@@ -255,7 +247,7 @@ page_fault (struct intr_frame *f)
       
       /* Try to grow stack - if you can't grow it, kill the process */
       if (kpage == NULL || !install_page(fault_addr, kpage, true)) {
-        printf("Stack couldn't be grown\n");
+        //printf("Stack couldn't be grown\n");
         page_fault_error(f, fault_addr, not_present, write, user);
       }
       
@@ -265,7 +257,7 @@ page_fault (struct intr_frame *f)
     
     /* Else trying to access memory process isn't supposed to, kill the process */
     else {
-      printf("Fell through all cases\n");
+      //printf("Fell through all cases\n");
       page_fault_error(f, fault_addr, not_present, write, user);
     }
   }
