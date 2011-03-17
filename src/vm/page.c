@@ -124,6 +124,12 @@ page_table_destroy(struct sup_table* sup)
   free(sup);  
 }
 
+void*
+lower_page_bound (const void* vaddr) 
+{
+  return (void*)((uint32_t)vaddr - ((uint32_t)vaddr % PGSIZE));
+}
+
 
 /* Hash table functions */
 
@@ -167,12 +173,4 @@ void
 debug_page_table (struct sup_table* sup)
 {
   hash_apply (&sup->page_table,print_page);
-}
-
-
-void*
-lower_page_bound (void* vaddr) 
-{
-  return (void*)((uint32_t)vaddr - ((uint32_t)vaddr % PGSIZE));
-    
 }

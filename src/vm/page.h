@@ -38,7 +38,7 @@ struct page* page_table_find (struct page* p, struct sup_table* table);
 bool add_page (uint8_t* upage, bool writable, struct sup_table* table);
 struct page* page_find (uint8_t* upage, struct sup_table* sup);
 uint32_t* lookup_sup_page (struct process* process, const void* vaddr);
-void* lower_page_bound (void* vaddr);
+void* lower_page_bound (const void* vaddr);
 
 void page_table_destroy(struct sup_table* sup);
 
