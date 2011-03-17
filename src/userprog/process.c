@@ -551,15 +551,16 @@ load_segment (struct file *file UNUSED, off_t ofs, uint8_t *upage,
    Return true if successful, false if a memory allocation error
    or disk read error occurs. */
 uint8_t*
-load_page(struct file *file, off_t ofs, uint8_t *upage,
-              uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
+load_page(struct file *file, struct page* p)
+          //off_t ofs, uint8_t *upage,
+            //  uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
 {
-  ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
-  ASSERT (pg_ofs (upage) == 0);
-  ASSERT (ofs % PGSIZE == 0);
+  ASSERT ((p->read_bytes + p->zero_bytes) % PGSIZE == 0);
+  ASSERT (pg_ofs (p->upage) == 0);
+  ASSERT (p->ofs % PGSIZE == 0);
   
   lock_acquire(&filesys_lock);
-  file_seek (file, ofs);
+  file_seek (file, p->ofs);
   lock_release(&filesys_lock);
 
   /* Get a page of memory. */  
@@ -569,21 +570,25 @@ load_page(struct file *file, off_t ofs, uint8_t *upage,
 
   /* Load this page. */
   lock_acquire(&filesys_lock);
-  if (file_read (file, kpage, read_bytes) != (int) read_bytes)
+  if (file_read (file, kpage, p->read_bytes) != (int) p->read_bytes)
   {
     palloc_free_page (kpage);
     lock_release(&filesys_lock);
     return NULL;
   }
   lock_release(&filesys_lock);
-  memset (kpage + read_bytes, 0, zero_bytes);
+  memset (kpage + p->read_bytes, 0, p->zero_bytes);
 
   /* Add the page to the process's address space. */
-  if (!install_page (upage, kpage, writable)) 
+  if (!install_page (p->upage, kpage, p->writable)) 
   {
     palloc_free_page (kpage);
     return NULL; 
   }
+  
+  p->loaded = true;
+  
+  
 
   return kpage;
 }

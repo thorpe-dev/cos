@@ -28,7 +28,7 @@ page_table_add (struct page* p, struct sup_table* table)
 {
   bool success;
   success = false;
-    
+      
   if (hash_insert (&table->page_table, &p->elem) == NULL)
     success = true;
   
@@ -116,6 +116,38 @@ void*
 lower_page_bound (const void* vaddr) 
 {
   return (void*)((uint32_t)vaddr - ((uint32_t)vaddr % PGSIZE));
+}
+
+bool
+load_buffer_pages(const void* buffer, unsigned int size)
+{
+  unsigned int i;
+  uint8_t* addr;
+  struct file* file;
+  struct page* p;
+  file = thread_current()->process->process_file;
+  uint8_t* round_buffer = lower_page_bound(buffer);
+   
+  for(i = 0; i <= size / PGSIZE ; i++)
+  {
+    addr = round_buffer + (i*PGSIZE);
+    p = page_find (addr,thread_current()->process->sup_table);
+    if (!p->loaded)
+      if (load_page (file, p) == NULL)
+        return false;
+  }
+  
+  /* If buffer is right at a page boundary, */
+  if(lower_page_bound(buffer) != lower_page_bound(buffer+size))
+  {
+    addr = (uint8_t*)lower_page_bound(buffer + size);
+    p = page_find (addr,thread_current()->process->sup_table);
+    if (!p->loaded)
+      if (load_page (file, p) == NULL)
+        return false;
+  }
+  
+  return true;
 }
 
 

@@ -263,6 +263,8 @@ syscall_read(uint32_t* eax, int fd, void* buffer, unsigned int size)
   
   check_buffer_safety(buffer, size);
   
+  load_buffer_pages(buffer, size);
+  
   struct file* file;
   int read_size = 0;
   
@@ -540,7 +542,6 @@ check_buffer_safety (const void* buffer, int size)
     if( !is_safe_ptr(buffer + (i*PGSIZE)))
       thread_exit();
   }
-  
 }
 
 /* Given the number of arguments, checks that they are all safe pointers*/

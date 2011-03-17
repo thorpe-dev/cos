@@ -39,6 +39,8 @@ bool add_page (uint8_t* upage, bool writable, struct sup_table* table);
 struct page* page_find (uint8_t* upage, struct sup_table* sup);
 uint32_t* lookup_sup_page (struct process* process, const void* vaddr);
 void* lower_page_bound (const void* vaddr);
+bool load_buffer_pages(const void* buffer, unsigned int size);
+
 
 void page_table_destroy(struct sup_table* sup);
 

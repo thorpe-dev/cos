@@ -203,8 +203,7 @@ page_fault (struct intr_frame *f)
       /* If the page hasn't been loaded - is exectuable file - load_page from disk */
       if (!page->loaded) 
       {
-        kpage = load_page(sup->process->process_file, page->ofs,page->upage,page->read_bytes, 
-          page->zero_bytes, page->writable);
+        kpage = load_page(sup->process->process_file, page);
         
         if (kpage == NULL) 
         {
