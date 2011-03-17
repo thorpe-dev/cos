@@ -20,6 +20,8 @@ struct page {
   bool in_memory;       /* If the page has been loaded is it mapped to a frame or swap */
   
   void* disk; /* This is wrong - figurupe out wtf block devices are */
+  struct thread* owner;
+  uint32_t swap_idx;
   
   struct hash_elem elem;
 

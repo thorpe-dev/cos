@@ -18,6 +18,8 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
+#include "vm/swap.h"
+
 
 
 static thread_func start_process NO_RETURN;
@@ -510,6 +512,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       page->zero_bytes = page_zero_bytes;
       page->writable = writable;
       page->loaded = false;
+      page->swap_idx = NOT_YET_SWAPPED;
       /*File not given because a process has a pointer to its executable file */
       /****************************/
 
