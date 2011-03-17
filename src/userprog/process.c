@@ -97,7 +97,9 @@ start_process (void *process_)
   thread->process = process;
   
   /* Initialise the processes Supplemental page table*/
+  process->sup_table = malloc(sizeof(struct sup_table));
   page_table_init(process->sup_table);
+  process->sup_table->process = process;
   
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -189,6 +191,10 @@ process_exit (void)
     file_close(file);
   }
   lock_release(&filesys_lock);
+  
+  /* Frees all the memory used by the hash table */
+  
+  page_table_destroy(cur->process->sup_table);
 
   /* Wait for our children to die and free their memory - process_wait frees 
      the memory for the children's process structs */
@@ -200,6 +206,7 @@ process_exit (void)
     process_wait(child->pid);
   }
   
+    
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -418,6 +425,8 @@ load (char* command, void (**eip) (void), void **esp)
   /* Set up stack. */
   if (!setup_stack (esp, command))
     goto done;
+  
+
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
@@ -479,12 +488,13 @@ validate_segment (const struct Elf32_Phdr *phdr, struct file *file)
   return true;
 }
 
+/* Changed this to lazily load the process executable */
 /* Conceptually loads a segment starting at offset OFS in FILE at address
    UPAGE by adding in total (READ_BYTES + ZERO_BYTES)/PGSIZE pages of virtual
    memory to the processes sup_table.
    Saving READ_BYTES, ZERO_BYTES, OFS, WRITABLE, to each page.*/
 static bool
-load_segment (struct file *file, off_t ofs, uint8_t *upage,
+load_segment (struct file *file UNUSED, off_t ofs, uint8_t *upage,
               uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
 {
   ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
@@ -513,6 +523,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       page->writable = writable;
       page->loaded = false;
       page->swap_idx = NOT_YET_SWAPPED;
+      page->in_memory = false;
       /*File not given because a process has a pointer to its executable file */
       /****************************/
 
@@ -542,37 +553,42 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
    Return true if successful, false if a memory allocation error
    or disk read error occurs. */
-bool
+uint8_t*
 load_page(struct file *file, off_t ofs, uint8_t *upage,
               uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
 {
   ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
-
+  
+  lock_acquire(&filesys_lock);
   file_seek (file, ofs);
+  lock_release(&filesys_lock);
 
   /* Get a page of memory. */  
   uint8_t *kpage = palloc_get_page (PAL_USER);
   if (kpage == NULL)
-    return false;
+    return NULL;
 
   /* Load this page. */
+  lock_acquire(&filesys_lock);
   if (file_read (file, kpage, read_bytes) != (int) read_bytes)
   {
     palloc_free_page (kpage);
-    return false;
+    lock_release(&filesys_lock);
+    return NULL;
   }
+  lock_release(&filesys_lock);
   memset (kpage + read_bytes, 0, zero_bytes);
 
   /* Add the page to the process's address space. */
   if (!install_page (upage, kpage, writable)) 
   {
     palloc_free_page (kpage);
-    return false; 
+    return NULL; 
   }
 
-  return true;
+  return kpage;
 }
 
 

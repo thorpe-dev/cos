@@ -65,3 +65,9 @@ swap_out(struct page* page)
   
   lock_release(&lock);
 }
+
+void*
+swap_in (struct page* page)
+{
+ return NULL; 
+}
