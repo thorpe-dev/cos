@@ -2,10 +2,13 @@
 #include "userprog/process.h"
 #include <hash.h>
 #include "threads/malloc.h"
-#include <stdio.h>
 #include "threads/vaddr.h"
 #include "vm/frame.h"
 #include "vm/swap.h"
+
+// TODO: Remove (debug)
+#include <stdio.h>
+
 
 
 static bool page_less (const struct hash_elem* p1, const struct hash_elem* p2, void* aux);
@@ -59,7 +62,7 @@ page_table_find (struct page* p, struct sup_table* table)
 }
 
 struct page*
-add_page (uint8_t* upage, bool writable, struct sup_table* table)
+add_page (uint8_t* upage, bool writable)
 {
   struct page* page;
   
@@ -67,8 +70,9 @@ add_page (uint8_t* upage, bool writable, struct sup_table* table)
   
   page->upage = upage;
   page->writable = writable;
+  page->owner = thread_current();
   
-  page_table_add(page, table);  
+  page_table_add(page, thread_current()->process->sup_table);  
   
   return page;
 }

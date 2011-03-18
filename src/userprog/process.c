@@ -20,6 +20,9 @@
 #include "vm/swap.h"
 #include "vm/page.h"
 #include "vm/frame.h"
+#include "userprog/exception.h"
+
+#define STACK_BASE (((uint8_t*) PHYS_BASE) - PGSIZE)
 
 
 
@@ -55,6 +58,7 @@ process_execute (const char *command)
   sema_init(&new_process->exit_complete, 0);
   new_process->pid = PID_ERROR;
   list_init(&new_process->open_files);
+  list_init(&new_process->mmaped_files);
   new_process->next_fd = 2;
 
   /* Push this new process into the current(parent) process list of children */
@@ -172,6 +176,7 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   struct file* file;
+  struct mmap_file* mmap_file;
   struct process* child;
   struct list_elem* e;
   
@@ -193,9 +198,19 @@ process_exit (void)
   }
   lock_release(&filesys_lock);
   
-  /* Frees all the memory used by the hash table */
+  /* Frees all the memory used by the memory mapped files list */
+  e = list_begin (&cur->process->mmaped_files);
+  while ( e != list_end (&cur->process->mmaped_files))
+  {
+    mmap_file = list_entry(e, struct mmap_file, elem);
+    e = list_next (e);
+    free(mmap_file);
+  }
   
+  /* Frees all the memory used by the hash table */
   page_table_destroy(cur->process->sup_table);
+  
+  
 
   /* Wait for our children to die and free their memory - process_wait frees 
      the memory for the children's process structs */
@@ -305,15 +320,12 @@ struct Elf32_Phdr
 #define PT_STACK   0x6474e551   /* Stack segment. */
 
 /* Flags for p_flags.  See [ELF3] 2-3 and 2-4. */
-#define PF_X 1          /* Executable. */
-#define PF_W 2          /* Writable. */
-#define PF_R 4          /* Readable. */
+#define PF_X   1          /* Executable. */
+#define PF_W_P 2          /* Writable flag in process - def also in exception.h */
+#define PF_R   4          /* Readable. */
 
 static bool setup_stack (void **esp, char *args);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
-static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
-                          uint32_t read_bytes, uint32_t zero_bytes,
-                          bool writable);
 
 
 /* Loads an ELF executable from FILE_NAME into the current thread.
@@ -393,7 +405,7 @@ load (char* command, void (**eip) (void), void **esp)
         case PT_LOAD:
           if (validate_segment (&phdr, file)) 
             {
-              bool writable = (phdr.p_flags & PF_W) != 0;
+              bool writable = (phdr.p_flags & PF_W_P) != 0;
               uint32_t file_page = phdr.p_offset & ~PGMASK;
               uint32_t mem_page = phdr.p_vaddr & ~PGMASK;
               uint32_t page_offset = phdr.p_vaddr & PGMASK;
@@ -494,8 +506,8 @@ validate_segment (const struct Elf32_Phdr *phdr, struct file *file)
    UPAGE by adding in total (READ_BYTES + ZERO_BYTES)/PGSIZE pages of virtual
    memory to the processes sup_table.
    Saving READ_BYTES, ZERO_BYTES, OFS, WRITABLE, to each page.*/
-static bool
-load_segment (struct file *file UNUSED, off_t ofs, uint8_t *upage,
+bool
+load_segment (struct file *file, off_t ofs, uint8_t *upage,
               uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
 {
   ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
@@ -526,6 +538,7 @@ load_segment (struct file *file UNUSED, off_t ofs, uint8_t *upage,
       page->swap_idx = NOT_YET_SWAPPED;
       page->valid = false;
       page->owner = thread_current();
+      page->file = file;
       /*File not given because a process has a pointer to its executable file */
       /****************************/
 
@@ -608,7 +621,6 @@ setup_stack (void **esp, char *command)
 {
   uint8_t *kpage;
   bool success = false;
-  uint8_t* base_of_stack;
 
   struct list arguments;
   struct list_elem* e = NULL;
@@ -621,12 +633,11 @@ setup_stack (void **esp, char *command)
 
   list_init(&arguments);
   
-  page = add_page(base_of_stack, true, thread_current()->process->sup_table);
+  page = add_page(STACK_BASE, true);
   kpage = frame_get(PAL_USER | PAL_ZERO, page);
   if (kpage != NULL) 
     {
-      base_of_stack = ((uint8_t*) PHYS_BASE) - PGSIZE;
-      success = install_page (base_of_stack, kpage, true);
+      success = install_page (STACK_BASE, kpage, true);
       if (success){
         page->loaded = page->valid = true;
         page->read_bytes = PGSIZE;
@@ -695,7 +706,13 @@ setup_stack (void **esp, char *command)
         *(uint32_t*)ptr = 0;
 
         *esp = PHYS_BASE - (base - ptr);
+        
+        /*  Adds a page for the the very bottom of the stack - 
+            ensures the stack can grow to max size and we don't enter the stack
+            when doing memory mapping */
+        add_page (MAX_STACK_ADDRESS, true);
       }
+      
       else
         page_free(page);
     }

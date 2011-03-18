@@ -27,15 +27,17 @@ static void
 frame_add(unsigned int frame_index, struct page* sup_page)
 {
   ASSERT(table[frame_index] == NULL);
-  printf("ADD frame index = %u\n", frame_index);
-  table[frame_index] = malloc(sizeof(struct frame));
+  table[0] = malloc(sizeof(struct frame));
+  printf("table = %X\n", table);
+  printf("table[0] = %X\n", table[0]);
+  free(table[0]);
+  printf("freed\n");
   table[frame_index]->sup_page = sup_page;
 }
 
 static void
 frame_del(unsigned int frame_index)
 {
-  printf("DELETE frame index = %u\n", frame_index);
   ASSERT(table[frame_index] != NULL);
   free(table[frame_index]);
   table[frame_index] = NULL;
@@ -61,6 +63,8 @@ frame_get(enum palloc_flags flags, struct page* sup_page)
     /* Try again */
     kpage = palloc_get_page(flags);
   }
+  
+  printf("GET frame 0x%X\n", kpage);
   
   frame_add(page_to_frame_idx(kpage), sup_page);
   

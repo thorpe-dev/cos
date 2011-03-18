@@ -242,7 +242,7 @@ page_fault (struct intr_frame *f)
       }
       
       /* Add the new page to the page table */
-      add_page(upage, true, sup);
+      add_page(upage, true);
     }    
     
     /* Else trying to access memory process isn't supposed to, kill the process */

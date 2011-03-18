@@ -14,28 +14,32 @@
 #include "threads/palloc.h"
 #include "devices/input.h"
 #include <string.h>
+#include "userprog/exception.h"
 
 #define MAXCHAR 512
 
 static void syscall_handler (struct intr_frame *);
 
-static void syscall_halt  (void);
-static void syscall_exit  (int status);
-static void syscall_exec  (uint32_t* eax, const char* command);
-static void syscall_wait  (uint32_t* eax, pid_t pid);
-static void syscall_create(uint32_t* eax, const char* file, unsigned initial_size);
-static void syscall_remove(uint32_t* eax, const char* file);
-static void syscall_open  (uint32_t* eax, const char* file_name);
+static void syscall_halt    (void);
+static void syscall_exit    (int status);
+static void syscall_exec    (uint32_t* eax, const char* command);
+static void syscall_wait    (uint32_t* eax, pid_t pid);
+static void syscall_create  (uint32_t* eax, const char* file, unsigned initial_size);
+static void syscall_remove  (uint32_t* eax, const char* file);
+static void syscall_open    (uint32_t* eax, const char* file_name);
 static void syscall_filesize(uint32_t* eax, int fd);
-static void syscall_read  (uint32_t* eax, int fd, void* buffer, unsigned int size);
-static void syscall_write (uint32_t* eax, int fd, const void* buffer, unsigned size);
-static void syscall_seek  (int fd, unsigned int position);
-static void syscall_tell  (uint32_t* eax, int fd);
-static void syscall_close (int fd);
-static void syscall_mmap  (uint32_t* eax, int fd, void* addr);
+static void syscall_read    (uint32_t* eax, int fd, void* buffer, unsigned int size);
+static void syscall_write   (uint32_t* eax, int fd, const void* buffer, unsigned size);
+static void syscall_seek    (int fd, unsigned int position);
+static void syscall_tell    (uint32_t* eax, int fd);
+static void syscall_close   (int fd);
+static void syscall_mmap    (uint32_t* eax, int fd, const void* addr);
+static void syscall_munmap  (mapid_t mapid);
 
 static void check_safe_ptr (const void* ptr, int no_args);
 static void check_buffer_safety (const void* buffer, int size);
+static bool check_pages (const void* addr, int size, struct sup_table* sup);
+
 
 static void syscall_return_int    (uint32_t* eax, const int value);
 static void syscall_return_pid_t  (uint32_t* eax, const pid_t value);
@@ -45,6 +49,7 @@ static void syscall_return_mapid_t (uint32_t* eax, const mapid_t value);
 
 
 static struct file* find_file (int fd);
+static struct mmap_file* find_mmap (mapid_t id);
 
 
 void
@@ -140,6 +145,8 @@ syscall_handler (struct intr_frame *f)
       break;
       
     case SYS_MUNMAP:
+      check_safe_ptr (argument_1, 1);
+      syscall_munmap((*(mapid_t*)argument_1));
       break;
       
     default: 
@@ -403,68 +410,53 @@ syscall_close (int fd)
 
 }
 
-/* Started skeleton function for memory mapping */
 static void 
-syscall_mmap  (uint32_t* eax, int fd, void* addr)
+syscall_mmap  (uint32_t* eax, int fd, const void* addr)
 {
   mapid_t value;
   struct file* file;
-  int read_bytes;
-  uint8_t* kpage;
-  size_t page_read_bytes;
-  size_t page_zero_bytes;
-  read_bytes = 0;
-  value = -1;
+  struct mmap_file* mmap;
+  off_t read_bytes;
+  uint32_t zero_bytes;
+  value = -1; /* Failure return value */
+  
+  struct sup_table* sup = thread_current()->process->sup_table;
   
   if (((int)addr % PGSIZE == 0)
     && ((int)addr != 0)
     && (fd > 1))
   {
-    file = find_file ( fd );
-    lock_acquire(&filesys_lock);
-    if (file == NULL
-      && file_length(file) == 0) 
-    {
-      lock_release(&filesys_lock);
-    }
+    file = find_file (fd);
+    lock_acquire (&filesys_lock);
+
+    if (file == NULL)
+      lock_release (&filesys_lock);
+    
+    else if (file_length (file) == 0)
+      lock_release (&filesys_lock);
+    
+    else if (!check_pages (addr, file_length (file), sup))
+      lock_release (&filesys_lock);
     
     else
-    { /* Map file into memory here*/
+    { 
+      /* Map file into memory here*/
       read_bytes = file_length(file);
-      
-      while (read_bytes > 0) {
-        size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
-        size_t page_zero_bytes = PGSIZE - page_read_bytes;
-
-        /* Get a page of memory. */
-        kpage = palloc_get_page (PAL_USER);
-        if (kpage == NULL)
-          value = -1;
-        else {
-        /* Load this page. */
-          if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
-            {
-              palloc_free_page (kpage);
-              value = -1; 
-            }
-          else {
-            memset (kpage + page_read_bytes, 0, page_zero_bytes);
-
-            /* Add the page to the process's address space. */
-            /*if (!install_page (upage, kpage, writable)) 
-              {
-                palloc_free_page (kpage);
-                value= -1; 
-              }*/
-
-            /* Advance. */
-            read_bytes -= page_read_bytes;
-            //zero_bytes -= page_zero_bytes;
-            //upage += PGSIZE;
-            value = (mapid_t)kpage;
-          }
+      zero_bytes = PGSIZE - (read_bytes % PGSIZE);
+      if (load_segment (file, 0, (uint8_t*)addr, (uint32_t)read_bytes, zero_bytes, !file->deny_write))
+      {
+        mmap = malloc(sizeof(struct mmap_file));
+        if (mmap != NULL)
+        {
+          value = fd;
+          mmap->value = value;
+          mmap->file = file;
+          mmap->addr = (void*)addr;
+          mmap->file_size = read_bytes;
+          
+          list_push_back(&thread_current()->process->mmaped_files, &mmap->elem);
         }
-      }
+      }        
       lock_release(&filesys_lock);
     }
   }   
@@ -472,6 +464,46 @@ syscall_mmap  (uint32_t* eax, int fd, void* addr)
   
   syscall_return_mapid_t(eax, value);
 }
+
+
+static void 
+syscall_munmap (mapid_t mapid) 
+{
+  struct thread* t;
+  int i;
+  struct mmap_file* m;
+  struct page* p;
+  struct sup_table* sup;
+  struct list* swapped_pages;
+  struct list* memory_pages;
+    
+  m = find_mmap(mapid);
+  
+  /* If the mapid does not relate to any current mappings - return */
+  if (m == NULL)
+    return;
+  
+  t = thread_current();
+  sup = t->process->sup_table;
+  
+  swapped_pages = malloc(sizeof(struct list));
+  memory_pages = malloc(sizeof(struct list));
+  
+  for (i = 0; i <= m->file_size / PGSIZE ; i++) {
+    p = page_find ((uint8_t*)m->addr + (i * PGSIZE), sup);
+    if (p != NULL)
+      if (p->loaded)
+        if (p->valid)
+          return;
+          
+  }
+  
+  
+  
+  
+  
+}
+
 
 /* --- Syscall return methods ---*/
 
@@ -526,6 +558,25 @@ find_file(int fd)
   return NULL;
 }
 
+static struct mmap_file*
+find_mmap (mapid_t id)
+{
+  struct process* p;
+  struct list_elem* e;
+  struct mmap_file* m;
+ 
+  p = thread_current()->process;
+  
+  for (e = list_begin (&p->mmaped_files); e != list_end (&p->mmaped_files);
+     e = list_next (e)) 
+    {
+      m = list_entry (e, struct mmap_file, elem);
+      if(m->value == id)
+        return m; 
+    }
+  return NULL;
+}
+
 /* Checks the buffer is safe by checking at each buffer + PGSIZE */
 static void 
 check_buffer_safety (const void* buffer, int size)
@@ -546,11 +597,29 @@ check_buffer_safety (const void* buffer, int size)
 
 /* Given the number of arguments, checks that they are all safe pointers*/
 static void 
-check_safe_ptr (const void *ptr, int no_args)
+check_safe_ptr (const void* ptr, int no_args)
 {
   int i;
-  for(i = 0; i < no_args; i++){
+  for(i = 0; i < no_args; i++)
     if (!is_safe_ptr(ptr + (i * sizeof(uint32_t))))
       thread_exit();
+}
+
+/* Checks that none of the pages have already been allocated */
+static bool
+check_pages (const void* addr, int size, struct sup_table* sup)
+{
+  int i;
+  /* Check that we're not going to try and go inside the stack */
+  if ((uint32_t*)MAX_STACK_ADDRESS < (uint32_t*)addr 
+       || (uint32_t*)MAX_STACK_ADDRESS < (uint32_t*)addr + size)
+    return false;
+  
+  for (i = 0; i <= size / PGSIZE ; i++) {
+    if (page_find ((uint8_t*)addr + (i * PGSIZE), sup) != NULL) {
+      return false;
+    }
   }
+    
+  return true;
 }

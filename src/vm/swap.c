@@ -45,6 +45,13 @@ swap_out(struct page* sup_page)
   /* No swap yet allocated - has not been swapped out before */
   if(sup_page->swap_idx == NOT_YET_SWAPPED)
   {
+    /* For a file loaded into RAM but not written to, we just pretend
+       that it was never loaded */
+    if(sup_page->file != NULL && !pagedir_is_dirty(sup_page->owner->pagedir, sup_page->upage))
+    {
+      sup_page->loaded = false;
+    }
+    
     /* Scan for a single free page in swap block device */
     swap_page_idx = bitmap_scan_and_flip(swap_state, 0, 1, false);
     if(swap_page_idx == BITMAP_ERROR)
