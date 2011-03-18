@@ -15,6 +15,7 @@ struct page {
   uint8_t* kpage;       /* Kernel virtual address of page - will not be mapped to start with*/
   uint32_t read_bytes; /* Number of bytes that need to be read */
   uint32_t zero_bytes; /* Number of bytes that need to be zeroed */
+  
   bool writable;        /* Whether the page is writable or not */
   bool loaded;          /* Has the page been loaded yet - will not be before being mapped to a kpage*/
   bool in_memory;       /* If the page has been loaded is it mapped to a frame or swap */

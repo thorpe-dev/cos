@@ -502,7 +502,8 @@ load_segment (struct file *file UNUSED, off_t ofs, uint8_t *upage,
   ASSERT (ofs % PGSIZE == 0);
 
   struct page* page;
-  struct sup_table* sup_table = thread_current()->process->sup_table;
+  struct process* process = thread_current()->process;
+  struct sup_table* sup_table = process->sup_table;
   
   while (read_bytes > 0 || zero_bytes > 0) 
     {
@@ -524,6 +525,7 @@ load_segment (struct file *file UNUSED, off_t ofs, uint8_t *upage,
       page->loaded = false;
       page->swap_idx = NOT_YET_SWAPPED;
       page->in_memory = false;
+      page->owner = thread_current();
       /*File not given because a process has a pointer to its executable file */
       /****************************/
 
@@ -536,6 +538,8 @@ load_segment (struct file *file UNUSED, off_t ofs, uint8_t *upage,
       upage += PGSIZE;
       ofs += PGSIZE;
     }
+    
+    process->heap_top = upage;
     
   return true;
 }
