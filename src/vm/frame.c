@@ -34,7 +34,7 @@ frame_add(unsigned int frame_index, struct page* sup_page)
 static void
 frame_del(unsigned int frame_index)
 {
-  ASSERT(table[frame_index].sup_page != NULL);
+  //ASSERT(table[frame_index].sup_page != NULL);
   table[frame_index].sup_page = NULL;
 }
 
