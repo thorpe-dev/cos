@@ -236,13 +236,15 @@ page_fault (struct intr_frame *f)
       kpage = frame_get(PAL_USER, page);
       
       /* Try to grow stack - if you can't grow it, kill the process */
-      if (kpage == NULL || !install_page(fault_addr, kpage, true)) {
+      if (kpage == NULL || !install_page(upage, kpage, true)) {
         //printf("Stack couldn't be grown\n");
         page_fault_error(f, fault_addr, not_present, write, user);
       }
       
       /* Add the new page to the page table */
-      add_page(upage, true);
+      page = add_page(upage, true);
+      page->loaded = page->valid = true;
+      
     }    
     
     /* Else trying to access memory process isn't supposed to, kill the process */

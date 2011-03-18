@@ -90,6 +90,7 @@ swap_in(struct page* sup_page)
   /* Set data to location of some free PGSIZE area in RAM */
   kpage = frame_get(PAL_USER, sup_page);
   
+  printf("SWAP IN\n");
   install_page(sup_page->upage, kpage, true); //TODO: fix writable
   
   sec = idx_to_sec(sup_page->swap_idx);
