@@ -42,7 +42,9 @@ page_table_remove (struct page* p, struct sup_table* table)
   bool success;
   success = false;
   if (hash_delete (&table->page_table, &p->elem) != NULL)
-    success = true;  
+    success = true;
+  if (success)
+    free(p);
   
   return success;
 }
@@ -77,8 +79,7 @@ page_find (uint8_t* upage, struct sup_table* sup)
   struct page page;
   struct page* return_value;
   struct hash_elem* value;
-  
-  
+    
   page.upage = upage;
   
   value = hash_find(&sup->page_table, &page.elem);
@@ -123,9 +124,7 @@ load_buffer_pages(const void* buffer, unsigned int size)
 {
   unsigned int i;
   uint8_t* addr;
-  struct file* file;
   struct page* p;
-  file = thread_current()->process->process_file;
   uint8_t* round_buffer = lower_page_bound(buffer);
    
   for(i = 0; i <= size / PGSIZE ; i++)
@@ -133,7 +132,7 @@ load_buffer_pages(const void* buffer, unsigned int size)
     addr = round_buffer + (i*PGSIZE);
     p = page_find (addr,thread_current()->process->sup_table);
     if (p != NULL && !p->loaded)
-      load_page (file, p);
+      load_page (p);
   }
   
   /* If buffer is right at a page boundary, might miss a page to be loaded - check that it is loaded  */
@@ -142,7 +141,7 @@ load_buffer_pages(const void* buffer, unsigned int size)
     addr = (uint8_t*)lower_page_bound(buffer + size);
     p = page_find (addr,thread_current()->process->sup_table);
     if (p != NULL && !p->loaded)
-      load_page (file, p);
+      load_page (p);
   }
   
 }
@@ -182,7 +181,8 @@ print_page (struct hash_elem* e, void* aux UNUSED)
 {
   struct page* page = hash_entry(e, struct page, elem);
   
-  printf("Page addr = %X\n",page->upage);
+  printf("Page addr = %X\t",page->upage);
+  printf("Page loaded = %d\n", page->loaded);
     
 }
 

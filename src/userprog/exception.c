@@ -154,7 +154,7 @@ page_fault (struct intr_frame *f)
   /* Turn interrupts back on (they were only off so that we could
      be assured of reading CR2 before it changed). */
   intr_enable ();
-
+  
   /* Count page faults. */
   page_fault_cnt++;
 
@@ -203,7 +203,7 @@ page_fault (struct intr_frame *f)
       /* If the page hasn't been loaded - is exectuable file - load_page from disk */
       if (!page->loaded) 
       {
-        load_page(sup->process->process_file, page);
+        load_page(page);
         
         //if (kpage == NULL) 
         //{
@@ -219,8 +219,7 @@ page_fault (struct intr_frame *f)
       
       /* Otherwise page has been swapped out - load from swap */
       else 
-      {
-        
+      {        
         kpage = swap_in(page);
         /* If the page couldn't be found - kill the process */
         if (kpage == NULL) {
@@ -245,7 +244,7 @@ page_fault (struct intr_frame *f)
       kpage = palloc_get_page(PAL_USER);
       
       /* Try to grow stack - if you can't grow it, kill the process */
-      if (kpage == NULL || !install_page(fault_addr, kpage, true)) {
+      if (kpage == NULL || !install_page(upage, kpage, true)) {
         //printf("Stack couldn't be grown\n");
         page_fault_error(f, fault_addr, not_present, write, user);
       }

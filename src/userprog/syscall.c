@@ -404,7 +404,10 @@ syscall_close (int fd)
     /* Lock filesystem, close file, unlock */
     lock_acquire(&filesys_lock);
     list_remove(&file->elem);
-    file_close(file);
+    if (!file->mmaped) {
+      file_close(file); }
+    else
+      file->closed = true;
     lock_release(&filesys_lock);
   }
 
@@ -456,7 +459,8 @@ syscall_mmap  (uint32_t* eax, int fd, const void* addr)
           
           list_push_back(&thread_current()->process->mmaped_files, &mmap->elem);
         }
-      }        
+      }
+      file->mmaped = true;
       lock_release(&filesys_lock);
     }
   }   
@@ -469,39 +473,82 @@ syscall_mmap  (uint32_t* eax, int fd, const void* addr)
 static void 
 syscall_munmap (mapid_t mapid) 
 {
-  struct thread* t;
-  int i;
   struct mmap_file* m;
-  struct page* p;
-  struct sup_table* sup;
-  struct list* swapped_pages;
-  struct list* memory_pages;
-    
+
   m = find_mmap(mapid);
   
   /* If the mapid does not relate to any current mappings - return */
   if (m == NULL)
     return;
   
-  t = thread_current();
-  sup = t->process->sup_table;
+  un_map_file (m, true);
+}
+
+void
+un_map_file (struct mmap_file* m, bool kill_thread)
+{
+  struct sup_table* sup;
+  unsigned int i;
+  struct page* p;
+  struct file* file;
   
-  swapped_pages = malloc(sizeof(struct list));
-  memory_pages = malloc(sizeof(struct list));
+  sup = thread_current()->process->sup_table;
   
+  lock_acquire(&filesys_lock);
+  file = m->file;
+  lock_release(&filesys_lock);
+
+  
+  /*  Go through pages for mapped file - if the page is null do nothing 
+      If it hasn't been loaded - do nothing
+      If its in memory, check dirty bit
+      If its not in memory - it has been written to - write it back */
   for (i = 0; i <= m->file_size / PGSIZE ; i++) {
     p = page_find ((uint8_t*)m->addr + (i * PGSIZE), sup);
-    if (p != NULL)
-      if (p->loaded)
-        if (p->valid)
-          return;
-          
+    
+    if (p != NULL && p->loaded) {
+      if (p->valid) {
+        /* For the pages in memory, go through and see if they've been modified */
+        if (pagedir_is_dirty (thread_current()->pagedir, (const void*)p->upage)) {
+          /* If the number of bytes written isn't the same as expect, kill the thread */
+          lock_acquire(&filesys_lock);
+          if ((file_write_at(file, (const void*)p->upage,p->read_bytes,p->ofs) != (off_t)p->read_bytes) && kill_thread)
+          {
+            lock_release(&filesys_lock);
+            thread_exit();
+          }
+          lock_release(&filesys_lock);
+          page_table_remove (p, sup);
+        }
+      }
+      else {
+        lock_acquire(&filesys_lock);
+        /* If the number of bytes written isn't the same as expect, kill the thread */
+        if ((file_write_at(file, (const void*)p->upage,p->read_bytes,p->ofs) != (off_t)p->read_bytes) && kill_thread) 
+        {
+          lock_release(&filesys_lock);
+          thread_exit();
+        }
+        page_table_remove (p, sup);
+        
+        lock_release(&filesys_lock);
+      }
+    }
+    else if (p != NULL)
+        page_table_remove(p,sup);
   }
   
+  m->file->mmaped = false;  
   
-  
-  
-  
+  /* If the process has closed the file - actually close the file */
+  if (m->file->closed) {
+    lock_acquire(&filesys_lock);
+    file_close(m->file);
+    lock_release(&filesys_lock);
+    
+  }
+  list_remove(&m->elem);
+  free(m);
 }
 
 

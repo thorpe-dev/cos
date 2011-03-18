@@ -19,6 +19,7 @@
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
 #include "userprog/exception.h"
+#include "userprog/syscall.h"
 
 
 static thread_func start_process NO_RETURN;
@@ -176,6 +177,7 @@ process_exit (void)
   struct list_elem* e;
   
   printf ("%s: exit(%d)\n",cur->name, cur->process->exit_status);
+  
   lock_acquire(&filesys_lock);
   
   file_close(cur->process->process_file);
@@ -189,17 +191,25 @@ process_exit (void)
   {
     file = list_entry(e, struct file, elem);
     e = list_next (e);
-    file_close(file);
+    if (!file->mmaped) {
+      file_close(file); }
+    else {
+      list_remove(&file->elem);
+      file->closed = true;
+    }
   }
   lock_release(&filesys_lock);
   
   /* Frees all the memory used by the memory mapped files list */
   e = list_begin (&cur->process->mmaped_files);
+  
   while ( e != list_end (&cur->process->mmaped_files))
   {
     mmap_file = list_entry(e, struct mmap_file, elem);
+    un_map_file(mmap_file, false);
     e = list_next (e);
-    free(mmap_file);
+    if (mmap_file != NULL)
+      free(mmap_file);
   }
   
   /* Frees all the memory used by the hash table */
@@ -263,7 +273,7 @@ process_activate (void)
 typedef uint32_t Elf32_Word, Elf32_Addr, Elf32_Off;
 typedef uint16_t Elf32_Half;
 
-/* For use with ELF types in printf(). */
+/* For use with ELfault_addrF types in printf(). */
 #define PE32Wx PRIx32   /* Print Elf32_Word in hexadecimal. */
 #define PE32Ax PRIx32   /* Print Elf32_Addr in hexadecimal. */
 #define PE32Ox PRIx32   /* Print Elf32_Off in hexadecimal. */
@@ -561,20 +571,18 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
    Return true if successful, false if a memory allocation error
    or disk read error occurs. */
 void
-load_page(struct file *file, struct page* p)
-          //off_t ofs, uint8_t *upage,
-            //  uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
+load_page (struct page* p)
 {
-/*  printf ("addr of page in load page = %X\n", p->upage);
-  printf ("read bytes = %d\t\t\tzero bytes = %d\n",p->read_bytes, p->zero_bytes);
-  printf ("read bytes + zero byes = %d\n", p->read_bytes + p->zero_bytes);*/
   ASSERT ((p->read_bytes + p->zero_bytes) % PGSIZE == 0);
   ASSERT (pg_ofs (p->upage) == 0);
   ASSERT (p->ofs % PGSIZE == 0);
   
+  struct file* file;
+  
   lock_acquire(&filesys_lock);
+  file = file_reopen (p->file);
   file_seek (file, p->ofs);
-  lock_release(&filesys_lock);
+  lock_release(&filesys_lock);  
 
   /* Get a page of memory. */  
   uint8_t *kpage = palloc_get_page (PAL_USER);
@@ -600,7 +608,6 @@ load_page(struct file *file, struct page* p)
   }
   
   p->loaded = p->valid = true;
-  
 }
 
 
@@ -703,7 +710,9 @@ setup_stack (void **esp, char *command)
         /*  Adds a page for the the very bottom of the stack - 
             ensures the stack can grow to max size and we don't enter the stack
             when doing memory mapping */
-        add_page (MAX_STACK_ADDRESS, true, thread_current()->process->sup_table);
+        page = add_page (MAX_STACK_ADDRESS, true, thread_current()->process->sup_table);
+        page->loaded = page->valid = false;
+        
       }
       
       else
