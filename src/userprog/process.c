@@ -718,7 +718,7 @@ setup_stack (void **esp, char *command)
             ensures the stack can grow to max size and we don't enter the stack
             when doing memory mapping */
         add_page (MAX_STACK_ADDRESS, true);
-		page->loaded = page->valid = false;
+        page->loaded = page->valid = false;
       }
       
       else

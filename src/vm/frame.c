@@ -27,6 +27,7 @@ static void
 frame_add(unsigned int frame_index, struct page* sup_page)
 {
   ASSERT(table[frame_index].sup_page == NULL);
+  ASSERT(sup_page->loaded);
   table[frame_index].sup_page = sup_page;
 }
 
@@ -42,6 +43,7 @@ void*
 frame_get(enum palloc_flags flags, struct page* sup_page)
 {
   void* kpage;
+  struct page* candidate;
 
   lock_acquire(&lock);
 
@@ -49,7 +51,9 @@ frame_get(enum palloc_flags flags, struct page* sup_page)
 
   while(kpage == NULL)
   {
-    swap_out(table[0].sup_page);
+    candidate = table[0].sup_page;
+    ASSERT(candidate->loaded);
+    swap_out(candidate);
     /* Swap out some page
     TODO: Search for least recently used clean page
     If no clean pages, then LRU dirty page */
@@ -64,6 +68,13 @@ frame_get(enum palloc_flags flags, struct page* sup_page)
   
   return kpage;
 }
+
+//TODO: Finish
+/*void*
+frame_get_and_map(enum palloc_flags flags, struct page* sup_page)
+{
+  
+}*/
 
 void
 frame_free(struct page* sup_page)

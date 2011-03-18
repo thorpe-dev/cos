@@ -37,10 +37,7 @@ swap_out(struct page* sup_page)
 {
   unsigned int swap_page_idx;
   
-  ASSERT(sup_page->loaded);
-  
   lock_acquire(&lock);
-  
   
   /* No swap yet allocated - has not been swapped out before */
   if(sup_page->swap_idx == NOT_YET_SWAPPED)
