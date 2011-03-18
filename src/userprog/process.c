@@ -531,7 +531,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       page->loaded = false;
       page->valid = false;
       page->file = file;
-      /*File not given because a process has a pointer to its executable file */
       /****************************/
 
       /*Add this page to the page table */
