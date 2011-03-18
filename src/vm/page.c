@@ -56,7 +56,7 @@ page_table_find (struct page* p, struct sup_table* table)
   return (hash_entry (elem, struct page, elem));
 }
 
-bool
+struct page*
 add_page (uint8_t* upage, bool writable, struct sup_table* table)
 {
   struct page* page;
@@ -68,7 +68,7 @@ add_page (uint8_t* upage, bool writable, struct sup_table* table)
   
   page_table_add(page, table);  
   
-  return true;
+  return page;
 }
 
 struct page*
@@ -118,7 +118,7 @@ lower_page_bound (const void* vaddr)
   return (void*)((uint32_t)vaddr - ((uint32_t)vaddr % PGSIZE));
 }
 
-bool
+void
 load_buffer_pages(const void* buffer, unsigned int size)
 {
   unsigned int i;
@@ -132,22 +132,19 @@ load_buffer_pages(const void* buffer, unsigned int size)
   {
     addr = round_buffer + (i*PGSIZE);
     p = page_find (addr,thread_current()->process->sup_table);
-    if (!p->loaded)
-      if (load_page (file, p) == NULL)
-        return false;
+    if (p != NULL && !p->loaded)
+      load_page (file, p);
   }
   
-  /* If buffer is right at a page boundary, */
-  if(lower_page_bound(buffer) != lower_page_bound(buffer+size))
+  /* If buffer is right at a page boundary, might miss a page to be loaded - check that it is loaded  */
+  if(addr != lower_page_bound(buffer+size))
   {
     addr = (uint8_t*)lower_page_bound(buffer + size);
     p = page_find (addr,thread_current()->process->sup_table);
-    if (!p->loaded)
-      if (load_page (file, p) == NULL)
-        return false;
+    if (p != NULL && !p->loaded)
+      load_page (file, p);
   }
   
-  return true;
 }
 
 

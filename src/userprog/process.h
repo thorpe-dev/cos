@@ -13,7 +13,7 @@ tid_t process_execute (const char *command);
 int process_wait (tid_t);
 void process_exit (void);
 void process_activate (void);
-uint8_t* load_page(struct file *file, struct page* p);
+void load_page(struct file *file, struct page* p);
 
 bool install_page (void *upage, void *kpage, bool writable);
 
@@ -34,6 +34,15 @@ struct arg_elem
   struct list_elem elem;  /* list_elem */
 };
 
+struct mmap_file
+{
+  mapid_t value;
+  struct file* file;
+  void* addr;
+  size_t file_size;
+  
+};
+
 struct process
 {
   char* command;                    /* Command for use when loading process/thread */
@@ -44,6 +53,7 @@ struct process
   pid_t pid;                        /* Process pid */
   struct list_elem child_elem;      /* So it can be made a child of another processes thread*/
   struct list open_files;           /* List of files the process has open */
+  struct list mmaped_files;         /* List of memory mapped files */
   int next_fd;                      /* Used for generating file descriptors*/
   struct file* process_file;        /* The current process's executable */
   struct sup_table* sup_table;      /* Hash table of pages */

@@ -203,16 +203,16 @@ page_fault (struct intr_frame *f)
       /* If the page hasn't been loaded - is exectuable file - load_page from disk */
       if (!page->loaded) 
       {
-        kpage = load_page(sup->process->process_file, page);
+        load_page(sup->process->process_file, page);
         
-        if (kpage == NULL) 
-        {
+        //if (kpage == NULL) 
+        //{
           //printf("Page failed to be found\n");
-          page_fault_error(f, fault_addr, not_present, write, user);
-        }
+          //page_fault_error(f, fault_addr, not_present, write, user);
+        //}
         
-        else
-          page->kpage = kpage;
+        //else
+          //page->kpage = kpage;
         
        
       }
@@ -227,8 +227,8 @@ page_fault (struct intr_frame *f)
           //printf("Swapped out page couldn't be found\n");
           page_fault_error(f, fault_addr, not_present, write, user);
         }
-        else
-          page->kpage = kpage;
+        //else
+          //page->kpage = kpage;
       }
     }
     
