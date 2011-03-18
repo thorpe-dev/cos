@@ -6,6 +6,9 @@
 #include "vm/frame.h"
 #include "vm/swap.h"
 
+//TODO: Remove
+#include <stdio.h>
+
 static bool page_less (const struct hash_elem* p1, const struct hash_elem* p2, void* aux);
 static unsigned page_hash (const struct hash_elem* elem, void* aux);
 static void page_destroy (struct hash_elem* e, void* aux);

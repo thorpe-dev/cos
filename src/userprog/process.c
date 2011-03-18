@@ -549,7 +549,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       page->valid = false;
       page->owner = thread_current();
       page->file = file;
-      /*File not given because a process has a pointer to its executable file */
       /****************************/
 
       /*Add this page to the page table */
@@ -718,7 +717,11 @@ setup_stack (void **esp, char *command)
         /*  Adds a page for the the very bottom of the stack - 
             ensures the stack can grow to max size and we don't enter the stack
             when doing memory mapping */
+<<<<<<< HEAD
         page = add_page (MAX_STACK_ADDRESS, true);
+=======
+        add_page (MAX_STACK_ADDRESS, true);
+>>>>>>> ac541c6a6b4b1e178f4dc15f5f2d29969c91a61b
         page->loaded = page->valid = false;
       }
       
