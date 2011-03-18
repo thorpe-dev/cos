@@ -14,11 +14,12 @@
 #include "threads/flags.h"
 #include "threads/init.h"
 #include "threads/interrupt.h"
-#include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
 #include "vm/swap.h"
+#include "vm/page.h"
+#include "vm/frame.h"
 
 
 
@@ -573,7 +574,7 @@ load_page(struct file *file, struct page* p)
   lock_release(&filesys_lock);
 
   /* Get a page of memory. */  
-  uint8_t *kpage = palloc_get_page (PAL_USER);
+  uint8_t *kpage = frame_get(PAL_USER, p);
   if (kpage == NULL)
     PANIC("Load page failed - couldn't get a page");
 
@@ -581,7 +582,7 @@ load_page(struct file *file, struct page* p)
   lock_acquire(&filesys_lock);
   if (file_read (file, kpage, p->read_bytes) != (int) p->read_bytes)
   {
-    palloc_free_page (kpage);
+    page_free(p);
     lock_release(&filesys_lock);
     PANIC("Load page failed - file could not be found");
   }
@@ -591,7 +592,7 @@ load_page(struct file *file, struct page* p)
   /* Add the page to the process's address space. */
   if (!install_page (p->upage, kpage, p->writable)) 
   {
-    palloc_free_page (kpage);
+    page_free(p);
     PANIC("Load page failed - install page failed"); 
   }
   
@@ -619,15 +620,14 @@ setup_stack (void **esp, char *command)
   struct page* page;
 
   list_init(&arguments);
-
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  
+  page = add_page(base_of_stack, true, thread_current()->process->sup_table);
+  kpage = frame_get(PAL_USER | PAL_ZERO, page);
   if (kpage != NULL) 
     {
       base_of_stack = ((uint8_t*) PHYS_BASE) - PGSIZE;
       success = install_page (base_of_stack, kpage, true);
       if (success){
-        
-        page = add_page (base_of_stack, true, thread_current()->process->sup_table);
         page->loaded = page->valid = true;
         page->read_bytes = PGSIZE;
 
@@ -639,13 +639,13 @@ setup_stack (void **esp, char *command)
         {
           this_arg = malloc(sizeof(struct arg_elem));
           if(this_arg == NULL) {
-            palloc_free_page(kpage);
+            page_free(page);
             return false;
           }
           this_arg->length = strlen(token)+1;
           this_arg->argument = malloc(this_arg->length);
           if(this_arg->argument == NULL) {
-            palloc_free_page(kpage);
+            page_free(page);
             free(this_arg);
             return false;
           }
@@ -697,7 +697,7 @@ setup_stack (void **esp, char *command)
         *esp = PHYS_BASE - (base - ptr);
       }
       else
-        palloc_free_page (kpage);
+        page_free(page);
     }
   return success;
 }

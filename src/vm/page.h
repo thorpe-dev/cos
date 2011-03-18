@@ -50,6 +50,8 @@ void page_table_destroy(struct sup_table* sup);
 
 void debug_page_table (struct sup_table* sup);
 
+void page_free(struct page* sup_page);
+
 
 
 

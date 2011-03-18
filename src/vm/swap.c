@@ -1,11 +1,11 @@
-#include "swap.h"
+#include "vm/swap.h"
 #include "devices/block.h"
 #include "threads/vaddr.h"
 #include <bitmap.h>
 #include "threads/synch.h"
 #include "userprog/pagedir.h"
 #include "threads/thread.h"
-#include "threads/palloc.h"
+#include "vm/frame.h"
 
 //TODO: Remove (debug)
 #include <stdio.h>
@@ -33,66 +33,78 @@ swap_init(void)
    If so, checks the dirty bit and swaps out if necessary. 
    If not, finds some new space in swap and swaps out the page to it */
 void
-swap_out(struct page* page)
+swap_out(struct page* sup_page)
 {
   unsigned int swap_page_idx;
   
-  ASSERT(page->loaded);
+  ASSERT(sup_page->loaded);
   
   lock_acquire(&lock);
   
   
   /* No swap yet allocated - has not been swapped out before */
-  if(page->swap_idx == NOT_YET_SWAPPED)
+  if(sup_page->swap_idx == NOT_YET_SWAPPED)
   {
     /* Scan for a single free page in swap block device */
     swap_page_idx = bitmap_scan_and_flip(swap_state, 0, 1, false);
     if(swap_page_idx == BITMAP_ERROR)
       PANIC("No space left on swap disk!\n");
     
-    page->swap_idx = swap_page_idx;
+    sup_page->swap_idx = swap_page_idx;
     
-    write_out(idx_to_sec(swap_page_idx), page->upage);
+    write_out(idx_to_sec(swap_page_idx), sup_page->upage);
   }
   /* Has been swapped out before, but needs to be written back to disk */
-  else if(pagedir_is_dirty(page->owner->pagedir, page->upage))
+  else if(pagedir_is_dirty(sup_page->owner->pagedir, sup_page->upage))
   {
-    write_out(idx_to_sec(page->swap_idx), page->upage);
+    write_out(idx_to_sec(sup_page->swap_idx), sup_page->upage);
   }
 
-  page->valid = false;
-  // TODO: Remove page->upage from page directory
+  sup_page->valid = false;
+  // TODO: Remove sup_page->upage from page directory
   
-  palloc_free_page(page->upage);
+  frame_free(sup_page);
   lock_release(&lock);
 }
 
-void*
-swap_in(struct page* page)
+void
+swap_in(struct page* sup_page)
 {
   block_sector_t sec;
+  void* kpage;
   void* data;
-  void* swapped_to;
 
-  ASSERT(page->loaded);
-  ASSERT(page->owner == thread_current());
-  ASSERT(!page->valid);
-  
   lock_acquire(&lock);
 
+  ASSERT(sup_page->loaded);
+  ASSERT(sup_page->owner == thread_current());
+  ASSERT(!sup_page->valid);
+
   /* Set data to location of some free PGSIZE area in RAM */
-  data = swapped_to = palloc_get_page(PAL_USER); //Here we want an arbitrary address
+  kpage = frame_get(PAL_USER, sup_page);
   
-  sec = idx_to_sec(page->swap_idx);
+  install_page(sup_page->upage, kpage, true); //TODO: fix writable
   
+  sec = idx_to_sec(sup_page->swap_idx);
+  data = sup_page->upage;  
   while(sec < PGSIZE/BLOCK_SECTOR_SIZE) {
     block_read(swap_area, sec++, data);
     data += BLOCK_SECTOR_SIZE;
   }
   
   lock_release(&lock);
+}
+
+void
+swap_free(struct page* sup_page)
+{
+  lock_acquire(&lock);
+  ASSERT(sup_page->loaded);
+  ASSERT(!sup_page->valid);
   
-  return swapped_to;
+  bitmap_flip(swap_state, sup_page->swap_idx);
+  
+  lock_release(&lock);
 }
 
 /* Writes one page from DATA, starting at sector SEC */
