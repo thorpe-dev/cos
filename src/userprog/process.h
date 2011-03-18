@@ -14,6 +14,9 @@ int process_wait (tid_t);
 void process_exit (void);
 void process_activate (void);
 void load_page(struct file *file, struct page* p);
+bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
+              uint32_t read_bytes, uint32_t zero_bytes, bool writable);
+
 
 bool install_page (void *upage, void *kpage, bool writable);
 
@@ -36,11 +39,11 @@ struct arg_elem
 
 struct mmap_file
 {
-  mapid_t value;
-  struct file* file;
-  void* addr;
-  size_t file_size;
-  
+  mapid_t value;          /* Mapid of the mmaped file */
+  struct file* file;      /* Pointer to the file being mapped */
+  void* addr;             /* Start address of the mapped file */
+  size_t file_size;       /* Size of the file - use to work out the end of the file in memory */
+  struct list_elem elem;  /* list_elem */  
 };
 
 struct process

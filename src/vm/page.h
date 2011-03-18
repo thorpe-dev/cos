@@ -10,6 +10,7 @@
 
 struct page {
   
+  struct file* file;    /* Pointer to file we expect to find */  
   uint8_t* upage;       /* User virtual address of page*/
   off_t ofs;            /* Offset into process exec file which will be used to load actual pages - map them to kernel pages ??*/
 //  uint8_t* kpage;       /* Kernel virtual address of page - will not be mapped to start with*/
