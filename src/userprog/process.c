@@ -206,10 +206,10 @@ process_exit (void)
   while ( e != list_end (&cur->process->mmaped_files))
   {
     mmap_file = list_entry(e, struct mmap_file, elem);
-    un_map_file(mmap_file, false);
     e = list_next (e);
-    if (mmap_file != NULL)
-      free(mmap_file);
+    if (mmap_file != NULL) {
+      un_map_file(mmap_file, false);
+    }
   }
   
   /* Frees all the memory used by the hash table */
