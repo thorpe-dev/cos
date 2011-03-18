@@ -8,7 +8,7 @@
 //TODO: remove (debug)
 #include <stdio.h>
 
-static struct frame** table;
+static struct frame* table;
 static struct lock lock;
 
 static void frame_add(unsigned int frame_index, struct page* sup_page);
@@ -19,24 +19,22 @@ frame_init(int count)
 {
   lock_init(&lock);
   lock_acquire(&lock);
-  table = malloc(sizeof(struct frame*) * count);
+  table = malloc(sizeof(struct frame) * count);
   lock_release(&lock);
 }
 
 static void
 frame_add(unsigned int frame_index, struct page* sup_page)
 {
-  ASSERT(table[frame_index] == NULL);
-  table[frame_index] = malloc(sizeof(struct frame));
-  table[frame_index]->sup_page = sup_page;
+  ASSERT(table[frame_index].sup_page == NULL);
+  table[frame_index].sup_page = sup_page;
 }
 
 static void
 frame_del(unsigned int frame_index)
 {
-  ASSERT(table[frame_index] != NULL);
-  free(table[frame_index]);
-  table[frame_index] = NULL;
+  ASSERT(table[frame_index].sup_page != NULL);
+  table[frame_index].sup_page = NULL;
 }
 
 
@@ -51,7 +49,7 @@ frame_get(enum palloc_flags flags, struct page* sup_page)
 
   while(kpage == NULL)
   {
-    swap_out(table[0]->sup_page);
+    swap_out(table[0].sup_page);
     /* Swap out some page
     TODO: Search for least recently used clean page
     If no clean pages, then LRU dirty page */
