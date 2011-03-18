@@ -13,7 +13,7 @@ tid_t process_execute (const char *command);
 int process_wait (tid_t);
 void process_exit (void);
 void process_activate (void);
-void load_page(struct file *file, struct page* p);
+void load_page(struct page* p);
 bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
               uint32_t read_bytes, uint32_t zero_bytes, bool writable);
 
@@ -60,6 +60,7 @@ struct process
   int next_fd;                      /* Used for generating file descriptors*/
   struct file* process_file;        /* The current process's executable */
   struct sup_table* sup_table;      /* Hash table of pages */
+  uint8_t* heap_top;                /* Location of the top of the heap */
 };
 
 

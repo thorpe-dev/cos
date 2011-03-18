@@ -14,11 +14,17 @@
 #include "threads/flags.h"
 #include "threads/init.h"
 #include "threads/interrupt.h"
-#include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
+#include "vm/swap.h"
+#include "vm/page.h"
+#include "vm/frame.h"
 #include "userprog/exception.h"
+#include "userprog/syscall.h"
+
+#define STACK_BASE (((uint8_t*) PHYS_BASE) - PGSIZE)
+
 
 
 static thread_func start_process NO_RETURN;
@@ -176,6 +182,7 @@ process_exit (void)
   struct list_elem* e;
   
   printf ("%s: exit(%d)\n",cur->name, cur->process->exit_status);
+  
   lock_acquire(&filesys_lock);
   
   file_close(cur->process->process_file);
@@ -189,17 +196,25 @@ process_exit (void)
   {
     file = list_entry(e, struct file, elem);
     e = list_next (e);
-    file_close(file);
+    if (!file->mmaped) {
+      file_close(file); }
+    else {
+      list_remove(&file->elem);
+      file->closed = true;
+    }
   }
   lock_release(&filesys_lock);
   
   /* Frees all the memory used by the memory mapped files list */
   e = list_begin (&cur->process->mmaped_files);
+  
   while ( e != list_end (&cur->process->mmaped_files))
   {
     mmap_file = list_entry(e, struct mmap_file, elem);
     e = list_next (e);
-    free(mmap_file);
+    if (mmap_file != NULL) {
+      un_map_file(mmap_file, false);
+    }
   }
   
   /* Frees all the memory used by the hash table */
@@ -263,7 +278,7 @@ process_activate (void)
 typedef uint32_t Elf32_Word, Elf32_Addr, Elf32_Off;
 typedef uint16_t Elf32_Half;
 
-/* For use with ELF types in printf(). */
+/* For use with ELfault_addrF types in printf(). */
 #define PE32Wx PRIx32   /* Print Elf32_Word in hexadecimal. */
 #define PE32Ax PRIx32   /* Print Elf32_Addr in hexadecimal. */
 #define PE32Ox PRIx32   /* Print Elf32_Off in hexadecimal. */
@@ -510,7 +525,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT (ofs % PGSIZE == 0);
 
   struct page* page;
-  struct sup_table* sup_table = thread_current()->process->sup_table;
+  struct process* process = thread_current()->process;
+  struct sup_table* sup_table = process->sup_table;
   
   while (read_bytes > 0 || zero_bytes > 0) 
     {
@@ -529,7 +545,9 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       page->zero_bytes = page_zero_bytes;
       page->writable = writable;
       page->loaded = false;
+      page->swap_idx = NOT_YET_SWAPPED;
       page->valid = false;
+      page->owner = thread_current();
       page->file = file;
       /****************************/
 
@@ -542,6 +560,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       upage += PGSIZE;
       ofs += PGSIZE;
     }
+    
+    process->heap_top = upage;
     
   return true;
 }
@@ -560,23 +580,21 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
    Return true if successful, false if a memory allocation error
    or disk read error occurs. */
 void
-load_page(struct file *file, struct page* p)
-          //off_t ofs, uint8_t *upage,
-            //  uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
+load_page (struct page* p)
 {
-/*  printf ("addr of page in load page = %X\n", p->upage);
-  printf ("read bytes = %d\t\t\tzero bytes = %d\n",p->read_bytes, p->zero_bytes);
-  printf ("read bytes + zero byes = %d\n", p->read_bytes + p->zero_bytes);*/
   ASSERT ((p->read_bytes + p->zero_bytes) % PGSIZE == 0);
   ASSERT (pg_ofs (p->upage) == 0);
   ASSERT (p->ofs % PGSIZE == 0);
   
+  struct file* file;
+  
   lock_acquire(&filesys_lock);
+  file = file_reopen (p->file);
   file_seek (file, p->ofs);
-  lock_release(&filesys_lock);
+  lock_release(&filesys_lock);  
 
   /* Get a page of memory. */  
-  uint8_t *kpage = palloc_get_page (PAL_USER);
+  uint8_t *kpage = frame_get(PAL_USER, p);
   if (kpage == NULL)
     PANIC("Load page failed - couldn't get a page");
 
@@ -584,7 +602,7 @@ load_page(struct file *file, struct page* p)
   lock_acquire(&filesys_lock);
   if (file_read (file, kpage, p->read_bytes) != (int) p->read_bytes)
   {
-    palloc_free_page (kpage);
+    page_free(p);
     lock_release(&filesys_lock);
     PANIC("Load page failed - file could not be found");
   }
@@ -594,12 +612,11 @@ load_page(struct file *file, struct page* p)
   /* Add the page to the process's address space. */
   if (!install_page (p->upage, kpage, p->writable)) 
   {
-    palloc_free_page (kpage);
+    page_free(p);
     PANIC("Load page failed - install page failed"); 
   }
   
   p->loaded = p->valid = true;
-  
 }
 
 
@@ -610,7 +627,6 @@ setup_stack (void **esp, char *command)
 {
   uint8_t *kpage;
   bool success = false;
-  uint8_t* base_of_stack;
 
   struct list arguments;
   struct list_elem* e = NULL;
@@ -622,15 +638,13 @@ setup_stack (void **esp, char *command)
   struct page* page;
 
   list_init(&arguments);
-
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  
+  page = add_page(STACK_BASE, true);
+  kpage = frame_get(PAL_USER | PAL_ZERO, page);
   if (kpage != NULL) 
     {
-      base_of_stack = ((uint8_t*) PHYS_BASE) - PGSIZE;
-      success = install_page (base_of_stack, kpage, true);
+      success = install_page (STACK_BASE, kpage, true);
       if (success){
-        
-        page = add_page (base_of_stack, true, thread_current()->process->sup_table);
         page->loaded = page->valid = true;
         page->read_bytes = PGSIZE;
 
@@ -642,13 +656,13 @@ setup_stack (void **esp, char *command)
         {
           this_arg = malloc(sizeof(struct arg_elem));
           if(this_arg == NULL) {
-            palloc_free_page(kpage);
+            page_free(page);
             return false;
           }
           this_arg->length = strlen(token)+1;
           this_arg->argument = malloc(this_arg->length);
           if(this_arg->argument == NULL) {
-            palloc_free_page(kpage);
+            page_free(page);
             free(this_arg);
             return false;
           }
@@ -702,11 +716,12 @@ setup_stack (void **esp, char *command)
         /*  Adds a page for the the very bottom of the stack - 
             ensures the stack can grow to max size and we don't enter the stack
             when doing memory mapping */
-        add_page (MAX_STACK_ADDRESS, true, thread_current()->process->sup_table);
+        add_page (MAX_STACK_ADDRESS, true);
+        page->loaded = page->valid = false;
       }
       
       else
-        palloc_free_page (kpage);
+        page_free(page);
     }
   return success;
 }
