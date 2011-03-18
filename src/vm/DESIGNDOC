@@ -8,18 +8,22 @@
 
 >> Fill in the names and email addresses of your group members.
 
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
+Arthur Fox      <af909@doc.ic.ac.uk >
+James Hallam    <jh2709@doc.ic.ac.uk>
+Michael Thorpe  <mt2309@doc.ic.ac.uk>
 
 ---- PRELIMINARIES ----
 
 >> If you have any preliminary comments on your submission, notes for the
 >> TAs, or extra credit, please give them here.
 
+None.
+
 >> Please cite any offline or online sources you consulted while
 >> preparing your submission, other than the Pintos documentation, course
 >> text, lecture notes, and course staff.
+
+None.
 
             PAGE TABLE MANAGEMENT
             =====================
@@ -30,24 +34,59 @@ FirstName LastName <email@domain.example>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+
+
+struct page {
+  
+  uint8_t* upage;       /* User virtual address of page*/
+  off_t ofs;            /* Offset into process exec file */
+  uint32_t read_bytes;  /* Number of bytes that need to be read */
+  uint32_t zero_bytes;  /* Number of bytes that need to be zeroed */
+  bool writable;        /* Whether the page is writable or not */
+  bool loaded;          /* Has the page been loaded yet*/
+  bool valid;           /* If the page has been loaded is it mapped to a frame or swap */
+    
+  struct hash_elem elem;
+
+};
+
+struct sup_table {
+  
+  struct process* process;
+  struct hash page_table;
+
+};
+
+
+Structs missing - frame struct??
+
+
 ---- ALGORITHMS ----
 
 >> A2: In a few paragraphs, describe your code for locating the frame,
 >> if any, that contains the data of a given page.
 
+With function x convert a page address into an index into the frame table array.
+
 >> A3: How does your code coordinate accessed and dirty bits between
 >> kernel and user virtual addresses that alias a single frame, or
 >> alternatively how do you avoid the issue?
+
+We avoid the issue by only accessing user virtual pages through user virtual addresses, no kernel virtual addresses are used (apart from by the kernel).
 
 ---- SYNCHRONIZATION ----
 
 >> A4: When two user processes both need a new frame at the same time,
 >> how are races avoided?
 
+Theres a frame lock! :D :D :D :D
+
 ---- RATIONALE ----
 
 >> A5: Why did you choose the data structure(s) that you did for
 >> representing virtual-to-physical mappings?
+
+User virtual addresses are both held in the supplemental page table and the originally defined page directory - we use the virtual addresses stored in the supplemental page table and map these to physical addreses with the original pagedirectory. We use the pagedir since it was already defined and kept its code for convenience.
 
                PAGING TO AND FROM DISK
                =======================
@@ -58,18 +97,33 @@ FirstName LastName <email@domain.example>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+
+static struct block* swap_area;
+static struct bitmap* swap_state;
+
+No swap structs???
+
+
+
 ---- ALGORITHMS ----
 
 >> B2: When a frame is required but none is free, some frame must be
 >> evicted.  Describe your code for choosing a frame to evict.
 
+Evicting frames yet to be done ??
+
+
 >> B3: When a process P obtains a frame that was previously used by a
 >> process Q, how do you adjust the page table (and any other data
 >> structures) to reflect the frame Q no longer has?
 
+Each page table entry has a bool valid - if Qs page gets its frame evicted then valid will be set to false in its sup_table.
+
 >> B4: Explain your heuristic for deciding whether a page fault for an
 >> invalid virtual address should cause the stack to be extended into
 >> the page that faulted.
+
+Stack max size is defined in exception.h (its value is Physbase - 1MB) if the fault_addr is between Physbase and MAX_STACK_ADDRESS then we assume that its faulting because the stack needs to grow. We ensure that no other mappings happen to this area other than stack mapping by checking that no mmaps are between it or anything else which gets a user address is between it.
 
 ---- SYNCHRONIZATION ----
 
@@ -78,21 +132,30 @@ FirstName LastName <email@domain.example>
 >> textbook for an explanation of the necessary conditions for
 >> deadlock.)
 
+
+Not sure how deadlocks are prevented?
+
 >> B6: A page fault in process P can cause another process Q's frame
 >> to be evicted.  How do you ensure that Q cannot access or modify
 >> the page during the eviction process?  How do you avoid a race
 >> between P evicting Q's frame and Q faulting the page back in?
+
+Frame lock ?
 
 >> B7: Suppose a page fault in process P causes a page to be read from
 >> the file system or swap.  How do you ensure that a second process Q
 >> cannot interfere by e.g. attempting to evict the frame while it is
 >> still being read in?
 
+Frame lock?
+
 >> B8: Explain how you handle access to paged-out pages that occur
 >> during system calls.  Do you use page faults to bring in pages (as
 >> in user programs), or do you have a mechanism for "locking" frames
 >> into physical memory, or do you use some other design?  How do you
 >> gracefully handle attempted accesses to invalid virtual addresses?
+
+???
 
 ---- RATIONALE ----
 
@@ -102,6 +165,9 @@ FirstName LastName <email@domain.example>
 >> possibility for deadlock but allows for high parallelism.  Explain
 >> where your design falls along this continuum and why you chose to
 >> design it this way.
+
+
+Currently only one frame lock ?
 
              MEMORY MAPPED FILES
              ===================
@@ -118,8 +184,12 @@ FirstName LastName <email@domain.example>
 >> memory subsystem.  Explain how the page fault and eviction
 >> processes differ between swap pages and other pages.
 
+?
+
 >> C3: Explain how you determine whether a new file mapping overlaps
 >> any existing segment.
+
+Not yet?
 
 ---- RATIONALE ----
 
@@ -129,6 +199,8 @@ FirstName LastName <email@domain.example>
 >> that much of their implementation can be shared.  Explain why your
 >> implementation either does or does not share much of the code for
 >> the two situations.
+
+Not sure how we handle this?
 
                SURVEY QUESTIONS
                ================
@@ -142,15 +214,24 @@ the quarter.
 >> In your opinion, was this assignment, or any one of the three problems
 >> in it, too easy or too hard?  Did it take too long or too little time?
 
+Fairly challenging - not too hard?
+
 >> Did you find that working on a particular part of the assignment gave
 >> you greater insight into some aspect of OS design?
+
+All the assignments gave a greater insight into the intricacies of implementing virtual memory.
 
 >> Is there some particular fact or hint we should give students in
 >> future quarters to help them solve the problems?  Conversely, did you
 >> find any of our guidance to be misleading?
 
+Better explanation of kernel virtual pages and user virtual pages in Pintos.
+
 >> Do you have any suggestions for the TAs to more effectively assist
 >> students, either for future quarters or the remaining tasks?
 
+Did not ask TAs for help.
+
 >> Any other comments?
 
+None.
