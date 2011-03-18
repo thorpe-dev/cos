@@ -2,13 +2,13 @@
 #include "userprog/process.h"
 #include <hash.h>
 #include "threads/malloc.h"
-#include <stdio.h>
 #include "threads/vaddr.h"
-
+#include "vm/frame.h"
+#include "vm/swap.h"
 
 static bool page_less (const struct hash_elem* p1, const struct hash_elem* p2, void* aux);
 static unsigned page_hash (const struct hash_elem* elem, void* aux);
-static void page_free (struct hash_elem* e, void* aux);
+static void page_destroy (struct hash_elem* e, void* aux);
 
 static void print_page (struct hash_elem* e, void* aux UNUSED);
 
@@ -59,7 +59,7 @@ page_table_find (struct page* p, struct sup_table* table)
 }
 
 struct page*
-add_page (uint8_t* upage, bool writable, struct sup_table* table)
+add_page (uint8_t* upage, bool writable)
 {
   struct page* page;
   
@@ -67,8 +67,9 @@ add_page (uint8_t* upage, bool writable, struct sup_table* table)
   
   page->upage = upage;
   page->writable = writable;
+  page->owner = thread_current();
   
-  page_table_add(page, table);  
+  page_table_add(page, thread_current()->process->sup_table);  
   
   return page;
 }
@@ -108,8 +109,7 @@ lookup_sup_page(struct process* process, const void* vaddr)
 void
 page_table_destroy(struct sup_table* sup)
 {
-  hash_destroy(&sup->page_table, page_free);
-  
+  hash_destroy(&sup->page_table, page_destroy);
   free(sup);  
 }
 
@@ -167,11 +167,13 @@ page_hash (const struct hash_elem* elem, void* aux UNUSED)
 }
 
 static void
-page_free (struct hash_elem* e, void* aux UNUSED)
+page_destroy (struct hash_elem* e, void* aux UNUSED)
 {
-  struct page* page = hash_entry(e, struct page, elem);
-  free(page); 
+  struct page* sup_page = hash_entry(e, struct page, elem);
   
+  page_free(sup_page);
+  
+  free(sup_page); 
 }
 
 /* Debug functions */
@@ -190,4 +192,20 @@ void
 debug_page_table (struct sup_table* sup)
 {
   hash_apply (&sup->page_table,print_page);
+}
+
+void page_free(struct page* sup_page){
+  ASSERT(sup_page->owner == thread_current());
+  
+  if(sup_page->loaded)
+  {
+    if(sup_page->valid)
+    {
+      frame_free(sup_page);
+    }
+    else
+    {
+      swap_free(sup_page);
+    }
+  }
 }

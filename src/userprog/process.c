@@ -14,12 +14,17 @@
 #include "threads/flags.h"
 #include "threads/init.h"
 #include "threads/interrupt.h"
-#include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
+#include "vm/swap.h"
+#include "vm/page.h"
+#include "vm/frame.h"
 #include "userprog/exception.h"
 #include "userprog/syscall.h"
+
+#define STACK_BASE (((uint8_t*) PHYS_BASE) - PGSIZE)
+
 
 
 static thread_func start_process NO_RETURN;
@@ -520,7 +525,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT (ofs % PGSIZE == 0);
 
   struct page* page;
-  struct sup_table* sup_table = thread_current()->process->sup_table;
+  struct process* process = thread_current()->process;
+  struct sup_table* sup_table = process->sup_table;
   
   while (read_bytes > 0 || zero_bytes > 0) 
     {
@@ -539,7 +545,9 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       page->zero_bytes = page_zero_bytes;
       page->writable = writable;
       page->loaded = false;
+      page->swap_idx = NOT_YET_SWAPPED;
       page->valid = false;
+      page->owner = thread_current();
       page->file = file;
       /*File not given because a process has a pointer to its executable file */
       /****************************/
@@ -553,6 +561,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       upage += PGSIZE;
       ofs += PGSIZE;
     }
+    
+    process->heap_top = upage;
     
   return true;
 }
@@ -585,7 +595,7 @@ load_page (struct page* p)
   lock_release(&filesys_lock);  
 
   /* Get a page of memory. */  
-  uint8_t *kpage = palloc_get_page (PAL_USER);
+  uint8_t *kpage = frame_get(PAL_USER, p);
   if (kpage == NULL)
     PANIC("Load page failed - couldn't get a page");
 
@@ -593,7 +603,7 @@ load_page (struct page* p)
   lock_acquire(&filesys_lock);
   if (file_read (file, kpage, p->read_bytes) != (int) p->read_bytes)
   {
-    palloc_free_page (kpage);
+    page_free(p);
     lock_release(&filesys_lock);
     PANIC("Load page failed - file could not be found");
   }
@@ -603,7 +613,7 @@ load_page (struct page* p)
   /* Add the page to the process's address space. */
   if (!install_page (p->upage, kpage, p->writable)) 
   {
-    palloc_free_page (kpage);
+    page_free(p);
     PANIC("Load page failed - install page failed"); 
   }
   
@@ -618,7 +628,6 @@ setup_stack (void **esp, char *command)
 {
   uint8_t *kpage;
   bool success = false;
-  uint8_t* base_of_stack;
 
   struct list arguments;
   struct list_elem* e = NULL;
@@ -630,15 +639,13 @@ setup_stack (void **esp, char *command)
   struct page* page;
 
   list_init(&arguments);
-
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  
+  page = add_page(STACK_BASE, true);
+  kpage = frame_get(PAL_USER | PAL_ZERO, page);
   if (kpage != NULL) 
     {
-      base_of_stack = ((uint8_t*) PHYS_BASE) - PGSIZE;
-      success = install_page (base_of_stack, kpage, true);
+      success = install_page (STACK_BASE, kpage, true);
       if (success){
-        
-        page = add_page (base_of_stack, true, thread_current()->process->sup_table);
         page->loaded = page->valid = true;
         page->read_bytes = PGSIZE;
 
@@ -650,13 +657,13 @@ setup_stack (void **esp, char *command)
         {
           this_arg = malloc(sizeof(struct arg_elem));
           if(this_arg == NULL) {
-            palloc_free_page(kpage);
+            page_free(page);
             return false;
           }
           this_arg->length = strlen(token)+1;
           this_arg->argument = malloc(this_arg->length);
           if(this_arg->argument == NULL) {
-            palloc_free_page(kpage);
+            page_free(page);
             free(this_arg);
             return false;
           }
@@ -710,13 +717,12 @@ setup_stack (void **esp, char *command)
         /*  Adds a page for the the very bottom of the stack - 
             ensures the stack can grow to max size and we don't enter the stack
             when doing memory mapping */
-        page = add_page (MAX_STACK_ADDRESS, true, thread_current()->process->sup_table);
-        page->loaded = page->valid = false;
-        
+        add_page (MAX_STACK_ADDRESS, true);
+		page->loaded = page->valid = false;
       }
       
       else
-        palloc_free_page (kpage);
+        page_free(page);
     }
   return success;
 }

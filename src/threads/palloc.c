@@ -60,7 +60,7 @@ palloc_init (size_t user_page_limit)
   init_pool (&kernel_pool, free_start, kernel_pages, "kernel pool");
   init_pool (&user_pool, free_start + kernel_pages * PGSIZE,
              user_pages, "user pool");
-
+             
   frame_init(user_pages);
 }
 
@@ -99,11 +99,6 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
       if (flags & PAL_ASSERT)
         PANIC ("palloc_get: out of pages");
     }
-
-
-  if(pool == &user_pool) {
-    frame_add(page_idx, pages, page_cnt);
-  }
 
   return pages;
 }
@@ -147,10 +142,6 @@ palloc_free_multiple (void *pages, size_t page_cnt)
 
   ASSERT (bitmap_all (pool->used_map, page_idx, page_cnt));
   bitmap_set_multiple (pool->used_map, page_idx, page_cnt, false);
-  
-  if(pool == &user_pool) {
-    frame_del(page_idx, page_cnt);
-  }
 }
 
 /* Frees the page at PAGE. */
@@ -191,4 +182,11 @@ page_from_pool (const struct pool *pool, void *page)
   size_t end_page = start_page + bitmap_size (pool->used_map);
 
   return page_no >= start_page && page_no < end_page;
+}
+
+/* Converts a page address to a page index into the user pool */
+unsigned int
+page_to_frame_idx(void* page)
+{
+  return(pg_no(page) - pg_no(user_pool.base));
 }

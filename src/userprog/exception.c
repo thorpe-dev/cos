@@ -4,13 +4,13 @@
 #include "userprog/gdt.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
-#include "vm/page.h"
 #include "threads/vaddr.h"
-#include "threads/palloc.h"
 #include "userprog/pagedir.h"
 #include <stdint.h>
 #include "userprog/process.h"
+#include "vm/page.h"
 #include "vm/swap.h"
+#include "vm/frame.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -219,18 +219,10 @@ page_fault (struct intr_frame *f)
       
       /* Otherwise page has been swapped out - load from swap */
       else 
-      {        
-        kpage = swap_in(page);
-        /* If the page couldn't be found - kill the process */
-        if (kpage == NULL) {
-          //printf("Swapped out page couldn't be found\n");
-          page_fault_error(f, fault_addr, not_present, write, user);
-        }
-        //else
-          //page->kpage = kpage;
+      {
+        swap_in(page);
       }
     }
-    
     /* Or check if just below stack pointer */
     else if ((int)stack_pointer - (int)fault_addr <= 32) {
       
@@ -241,7 +233,7 @@ page_fault (struct intr_frame *f)
       }
       
       /* Get a user page */
-      kpage = palloc_get_page(PAL_USER);
+      kpage = frame_get(PAL_USER, page);
       
       /* Try to grow stack - if you can't grow it, kill the process */
       if (kpage == NULL || !install_page(upage, kpage, true)) {
@@ -250,7 +242,9 @@ page_fault (struct intr_frame *f)
       }
       
       /* Add the new page to the page table */
-      add_page(upage, true, sup);
+      page = add_page(upage, true);
+      page->loaded = page->valid = true;
+      
     }    
     
     /* Else trying to access memory process isn't supposed to, kill the process */
