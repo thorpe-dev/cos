@@ -204,16 +204,7 @@ page_fault (struct intr_frame *f)
       if (!page->loaded) 
       {
         load_page(page);
-        
-        //if (kpage == NULL) 
-        //{
-          //printf("Page failed to be found\n");
-          //page_fault_error(f, fault_addr, not_present, write, user);
-        //}
-        
-        //else
-          //page->kpage = kpage;
-        
+              
        
       }
       

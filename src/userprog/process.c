@@ -589,8 +589,9 @@ load_page (struct page* p)
   
   struct file* file;
   
+  file = p->file;
+  
   lock_acquire(&filesys_lock);
-  file = file_reopen (p->file);
   file_seek (file, p->ofs);
   lock_release(&filesys_lock);  
 
@@ -717,8 +718,8 @@ setup_stack (void **esp, char *command)
         /*  Adds a page for the the very bottom of the stack - 
             ensures the stack can grow to max size and we don't enter the stack
             when doing memory mapping */
-        add_page (MAX_STACK_ADDRESS, true);
-		page->loaded = page->valid = false;
+        page = add_page (MAX_STACK_ADDRESS, true);
+        page->loaded = page->valid = false;
       }
       
       else
