@@ -138,7 +138,7 @@ page_fault (struct intr_frame *f)
   uint8_t* upage;
   uint8_t* kpage;
   struct page* page;
-  struct sup_table* t;  /* Page table */
+  struct sup_table* sup;  /* Page table */
     
   
 
@@ -163,8 +163,11 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
   
+  sup = thread_current()->process->sup_table;
+
+    
   /* If address is in kernel space or we got a kernel page fault, kill f */
-  if (!is_user_vaddr(fault_addr)) {
+  if (!is_user_vaddr(fault_addr) && user) {
     //printf("Address was either in kernel space or kernel page fault\n");
     page_fault_error(f, fault_addr, not_present, write, user);
   }
@@ -172,7 +175,7 @@ page_fault (struct intr_frame *f)
   if (not_present) {
     
     stack_pointer = f->esp;
-    
+        
     /* If the stack pointer is not safe, kill the process */
     if (!is_safe_ptr(stack_pointer) && user) {
       //printf("Stack pointer wasn't safe\n");
@@ -180,13 +183,13 @@ page_fault (struct intr_frame *f)
     }
     
     /* Getting lower address of page */
-    upage = (uint8_t*)((uint32_t)fault_addr- (uint32_t)fault_addr % PGSIZE);
+    upage = (uint8_t*)(lower_page_bound (fault_addr));
     
     /* Get page table from process */
-    t = thread_current()->process->sup_table;
+    sup = thread_current()->process->sup_table;
     
     /* Find page in page table */
-    page = page_find(upage, t);
+    page = page_find(upage, sup);
     
     /* The page should be there, but isn't - has been swapped out */
     if (page != NULL) {
@@ -200,17 +203,16 @@ page_fault (struct intr_frame *f)
       /* If the page hasn't been loaded - is exectuable file - load_page from disk */
       if (!page->loaded) 
       {
-        kpage = load_page(t->process->process_file, page->ofs,page->upage,page->read_bytes, 
-          page->zero_bytes, page->writable);
+        load_page(sup->process->process_file, page);
         
-        if (kpage == NULL) 
-        {
+        //if (kpage == NULL) 
+        //{
           //printf("Page failed to be found\n");
-          page_fault_error(f, fault_addr, not_present, write, user);
-        }
+          //page_fault_error(f, fault_addr, not_present, write, user);
+        //}
         
-        else
-          page->kpage = kpage;
+        //else
+          //page->kpage = kpage;
         
        
       }
@@ -225,15 +227,9 @@ page_fault (struct intr_frame *f)
           //printf("Swapped out page couldn't be found\n");
           page_fault_error(f, fault_addr, not_present, write, user);
         }
-        else
-          page->kpage = kpage;
+        //else
+          //page->kpage = kpage;
       }
-      
-      /*
-      TODO: get frame
-      TODO: fetch data into frame
-      TODO: point page table entry to physical address      
-      */
     }
     
     /* Or check if just below stack pointer */
@@ -255,7 +251,7 @@ page_fault (struct intr_frame *f)
       }
       
       /* Add the new page to the page table */
-      add_page(kpage, upage, true, t);
+      add_page(upage, true, sup);
     }    
     
     /* Else trying to access memory process isn't supposed to, kill the process */

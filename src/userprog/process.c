@@ -518,13 +518,12 @@ load_segment (struct file *file UNUSED, off_t ofs, uint8_t *upage,
       page = malloc(sizeof(struct page));
       page->upage = upage;
       page->ofs = ofs;
-      page->kpage = NULL; //kpage is yet to be mapped
       page->read_bytes = page_read_bytes;
       page->zero_bytes = page_zero_bytes;
       page->writable = writable;
       page->loaded = false;
       page->swap_idx = NOT_YET_SWAPPED;
-      page->in_memory = false;
+      page->valid = false;
       page->owner = thread_current();
       /*File not given because a process has a pointer to its executable file */
       /****************************/
@@ -557,42 +556,47 @@ load_segment (struct file *file UNUSED, off_t ofs, uint8_t *upage,
 
    Return true if successful, false if a memory allocation error
    or disk read error occurs. */
-uint8_t*
-load_page(struct file *file, off_t ofs, uint8_t *upage,
-              uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
+void
+load_page(struct file *file, struct page* p)
+          //off_t ofs, uint8_t *upage,
+            //  uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
 {
-  ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
-  ASSERT (pg_ofs (upage) == 0);
-  ASSERT (ofs % PGSIZE == 0);
+/*  printf ("addr of page in load page = %X\n", p->upage);
+  printf ("read bytes = %d\t\t\tzero bytes = %d\n",p->read_bytes, p->zero_bytes);
+  printf ("read bytes + zero byes = %d\n", p->read_bytes + p->zero_bytes);*/
+  ASSERT ((p->read_bytes + p->zero_bytes) % PGSIZE == 0);
+  ASSERT (pg_ofs (p->upage) == 0);
+  ASSERT (p->ofs % PGSIZE == 0);
   
   lock_acquire(&filesys_lock);
-  file_seek (file, ofs);
+  file_seek (file, p->ofs);
   lock_release(&filesys_lock);
 
   /* Get a page of memory. */  
   uint8_t *kpage = palloc_get_page (PAL_USER);
   if (kpage == NULL)
-    return NULL;
+    PANIC("Load page failed - couldn't get a page");
 
   /* Load this page. */
   lock_acquire(&filesys_lock);
-  if (file_read (file, kpage, read_bytes) != (int) read_bytes)
+  if (file_read (file, kpage, p->read_bytes) != (int) p->read_bytes)
   {
     palloc_free_page (kpage);
     lock_release(&filesys_lock);
-    return NULL;
+    PANIC("Load page failed - file could not be found");
   }
   lock_release(&filesys_lock);
-  memset (kpage + read_bytes, 0, zero_bytes);
+  memset (kpage + p->read_bytes, 0, p->zero_bytes);
 
   /* Add the page to the process's address space. */
-  if (!install_page (upage, kpage, writable)) 
+  if (!install_page (p->upage, kpage, p->writable)) 
   {
     palloc_free_page (kpage);
-    return NULL; 
+    PANIC("Load page failed - install page failed"); 
   }
-
-  return kpage;
+  
+  p->loaded = p->valid = true;
+  
 }
 
 
@@ -603,6 +607,7 @@ setup_stack (void **esp, char *command)
 {
   uint8_t *kpage;
   bool success = false;
+  uint8_t* base_of_stack;
 
   struct list arguments;
   struct list_elem* e = NULL;
@@ -611,14 +616,21 @@ setup_stack (void **esp, char *command)
   uint8_t* ptr, * base = NULL;
   int pointer_size = sizeof(void*);
   int num_args = 0;
+  struct page* page;
 
   list_init(&arguments);
 
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
-      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+      base_of_stack = ((uint8_t*) PHYS_BASE) - PGSIZE;
+      success = install_page (base_of_stack, kpage, true);
       if (success){
+        
+        page = add_page (base_of_stack, true, thread_current()->process->sup_table);
+        page->loaded = page->valid = true;
+        page->read_bytes = PGSIZE;
+
         ptr = base = (uint8_t*)kpage + PGSIZE;
 
         /* Add argument values and lengths to a list */

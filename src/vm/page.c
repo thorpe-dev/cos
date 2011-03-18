@@ -1,27 +1,23 @@
 #include "vm/page.h"
+#include "userprog/process.h"
 #include <hash.h>
 #include "threads/malloc.h"
 #include <stdio.h>
+#include "threads/vaddr.h"
+
 
 static bool page_less (const struct hash_elem* p1, const struct hash_elem* p2, void* aux);
 static unsigned page_hash (const struct hash_elem* elem, void* aux);
 static void page_free (struct hash_elem* e, void* aux);
+
+static void print_page (struct hash_elem* e, void* aux UNUSED);
+
 
 
 bool
 page_table_init (struct sup_table* sup) 
 {
   bool success;
-  success = false;
-  //struct hash* hash;
-  //printf("sizeof sup_table %d\n size of hash %d\n", sizeof(struct sup_table), sizeof(struct hash));
-  
-  //hash = malloc(sizeof(struct hash));
-  
-  //if (hash == NULL)
-  //  return success;
-  
-  //sup->page_table = hash;
   success = hash_init(&sup->page_table, page_hash, page_less, NULL);
   return success;
 }
@@ -32,7 +28,7 @@ page_table_add (struct page* p, struct sup_table* table)
 {
   bool success;
   success = false;
-  
+      
   if (hash_insert (&table->page_table, &p->elem) == NULL)
     success = true;
   
@@ -60,39 +56,52 @@ page_table_find (struct page* p, struct sup_table* table)
   return (hash_entry (elem, struct page, elem));
 }
 
-bool
-add_page (uint8_t* kpage, uint8_t* upage, bool writable, struct sup_table* table)
+struct page*
+add_page (uint8_t* upage, bool writable, struct sup_table* table)
 {
   struct page* page;
   
   page = malloc(sizeof(struct page));
   
   page->upage = upage;
-  page->kpage = kpage;
   page->writable = writable;
   
   page_table_add(page, table);  
   
-  return true;
+  return page;
 }
 
-/* Unsure if this works */
 struct page*
 page_find (uint8_t* upage, struct sup_table* sup)
 {
-  struct page* page;
+  struct page page;
   struct page* return_value;
   struct hash_elem* value;
-  page = malloc(sizeof(struct page));
   
-  page->upage = upage;
   
-  value = hash_find(&sup->page_table, &page->elem);
+  page.upage = upage;
   
-  free(page);
+  value = hash_find(&sup->page_table, &page.elem);
+  if (value == 0)
+    return NULL;
   
   return_value = hash_entry(value, struct page, elem);
+
   return return_value;
+}
+
+uint32_t*
+lookup_sup_page(struct process* process, const void* vaddr)
+{
+  
+  struct sup_table* sup = process->sup_table;
+  
+  struct page* ptr = page_find((uint8_t*)vaddr, sup);
+  if (ptr != NULL)
+    return (uint32_t*)ptr->upage;
+  
+  return NULL;
+  
 }
 
 void
@@ -101,6 +110,41 @@ page_table_destroy(struct sup_table* sup)
   hash_destroy(&sup->page_table, page_free);
   
   free(sup);  
+}
+
+void*
+lower_page_bound (const void* vaddr) 
+{
+  return (void*)((uint32_t)vaddr - ((uint32_t)vaddr % PGSIZE));
+}
+
+void
+load_buffer_pages(const void* buffer, unsigned int size)
+{
+  unsigned int i;
+  uint8_t* addr;
+  struct file* file;
+  struct page* p;
+  file = thread_current()->process->process_file;
+  uint8_t* round_buffer = lower_page_bound(buffer);
+   
+  for(i = 0; i <= size / PGSIZE ; i++)
+  {
+    addr = round_buffer + (i*PGSIZE);
+    p = page_find (addr,thread_current()->process->sup_table);
+    if (p != NULL && !p->loaded)
+      load_page (file, p);
+  }
+  
+  /* If buffer is right at a page boundary, might miss a page to be loaded - check that it is loaded  */
+  if(addr != lower_page_bound(buffer+size))
+  {
+    addr = (uint8_t*)lower_page_bound(buffer + size);
+    p = page_find (addr,thread_current()->process->sup_table);
+    if (p != NULL && !p->loaded)
+      load_page (file, p);
+  }
+  
 }
 
 
@@ -129,4 +173,21 @@ page_free (struct hash_elem* e, void* aux UNUSED)
   struct page* page = hash_entry(e, struct page, elem);
   free(page); 
   
+}
+
+/* Debug functions */
+
+static void
+print_page (struct hash_elem* e, void* aux UNUSED)
+{
+  struct page* page = hash_entry(e, struct page, elem);
+  
+  printf("Page addr = %X\n",page->upage);
+    
+}
+
+void
+debug_page_table (struct sup_table* sup)
+{
+  hash_apply (&sup->page_table,print_page);
 }

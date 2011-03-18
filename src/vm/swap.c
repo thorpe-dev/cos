@@ -60,7 +60,7 @@ swap_out(struct page* page)
     write_out(idx_to_sec(page->swap_idx), page->upage);
   }
 
-  page->in_memory = false;
+  page->valid = false;
   // TODO: Remove page->upage from page directory
   
   palloc_free_page(page->upage);
@@ -76,7 +76,7 @@ swap_in(struct page* page)
 
   ASSERT(page->loaded);
   ASSERT(page->owner == thread_current());
-  ASSERT(!page->in_memory);
+  ASSERT(!page->valid);
   
   lock_acquire(&lock);
 
