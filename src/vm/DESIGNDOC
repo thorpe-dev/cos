@@ -8,7 +8,7 @@
 
 >> Fill in the names and email addresses of your group members.
 
-Arthur Fox      <af909@doc.ic.ac.uk >
+Arthur Fox      < af909@doc.ic.ac.uk>
 James Hallam    <jh2709@doc.ic.ac.uk>
 Michael Thorpe  <mt2309@doc.ic.ac.uk>
 
@@ -34,31 +34,35 @@ None.
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+Each process has a supplemental page table which consists of a pointer back to the process and a struct hash storing the pages.
+struct sup_table 
+{ 
+  struct process* process; /* Pointer to the process the sup_table belongs to */
+  struct hash page_table;  /* The hash in which pages are stored */
+};
 
 
-struct page {
-  
+The supplemental page table stores pages with additional information to those in the pagedirectory, which have the struct below. 
+struct page 
+{
+  struct file* file;    /* Pointer to file we expect to find */  
   uint8_t* upage;       /* User virtual address of page*/
-  off_t ofs;            /* Offset into process exec file */
+  off_t ofs;            /* Offset into process file if page mapped from a file */
   uint32_t read_bytes;  /* Number of bytes that need to be read */
   uint32_t zero_bytes;  /* Number of bytes that need to be zeroed */
-  bool writable;        /* Whether the page is writable or not */
-  bool loaded;          /* Has the page been loaded yet*/
-  bool valid;           /* If the page has been loaded is it mapped to a frame or swap */
-    
-  struct hash_elem elem;
-
-};
-
-struct sup_table {
   
-  struct process* process;
-  struct hash page_table;
-
+  bool writable;        /* Whether the page is writable or not */
+  bool loaded;          /* Has the page been loaded yet - will not be before being mapped to a kpage*/
+  bool valid;           /* If the page has been loaded is it mapped to a frame or swap */
+  
+  struct thread* owner; /* Pointer to the thread it belongs to */
+  uint32_t swap_idx;    /* Index into swap if page is in swap */
+  
+  struct hash_elem elem;
 };
 
 
-Structs missing - frame struct??
+MISSING STRUCTS?
 
 
 ---- ALGORITHMS ----
@@ -97,13 +101,28 @@ User virtual addresses are both held in the supplemental page table and the orig
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+???
 
+Swap is as below ...
+[
 static struct block* swap_area;
 static struct bitmap* swap_state;
+static struct lock lock;
+]
 
-No swap structs???
+Frames are stored as below...
+[
+struct frame 
+{
+  void* sup_page;
+  // TODO: Add extra information for eviction
+};
+static struct frame* table;
+static struct lock lock;
+]
 
 
+MISSING STRUCTS?
 
 ---- ALGORITHMS ----
 
@@ -177,6 +196,40 @@ Currently only one frame lock ?
 >> C1: Copy here the declaration of each new or changed `struct' or
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
+
+File structs now track if a file has been memory mapped and if a user has closed a memory mapped file.
+struct file
+{
+...
+  bool mmaped;  /* Has the file been mmaped */
+  bool closed;  /* User has closed file */
+...
+};
+
+
+Processes now have a list of the files they have memory mapped, a supplemental page table and a pointer to the top of their heap.
+struct process
+{
+...
+  struct list mmaped_files;     /* List of memory mapped files */
+...
+  struct sup_table* sup_table;  /* Hash table of pages */
+  uint8_t* heap_top;            /* Location of the top of the heap */
+};
+
+
+Processes have a list of the files they have memory mapped, which have the struct below. 
+struct mmap_file
+{
+  mapid_t value;          /* Mapid of the mmaped file */
+  struct file* file;      /* Pointer to the file being mapped */
+  void* addr;             /* Start address of the mapped file */
+  size_t file_size;       /* Size of the file*/
+  struct list_elem elem;  /* list_elem */  
+};
+
+
+MISSING STRUCTS?
 
 ---- ALGORITHMS ----
 
