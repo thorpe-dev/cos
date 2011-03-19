@@ -139,9 +139,7 @@ page_fault (struct intr_frame *f)
   uint8_t* kpage;
   struct page* page;
   struct sup_table* sup;  /* Page table */
-    
   
-
   /* Obtain faulting address, the virtual address that was
      accessed to cause the fault.  It may point to code or to
      data.  It is not necessarily the address of the instruction
@@ -164,56 +162,60 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
   
   sup = thread_current()->process->sup_table;
-    
+  
   /* If address is in kernel space or we got a kernel page fault, kill f */
   if (!is_user_vaddr(fault_addr) && user) {
     //printf("Address was either in kernel space or kernel page fault\n");
     page_fault_error(f, fault_addr, not_present, write, user);
   }
   
-  if (not_present) {
+  /* Get page base of fault addr */
+  upage = (uint8_t*)(lower_page_bound (fault_addr));
+  
+  /* Get the stack pointer */
+  stack_pointer = f->esp;
+          
+  /* If the stack pointer is not safe, kill the process */
+  if (!is_user_vaddr(stack_pointer) && user) {
+    //printf("Stack pointer wasn't safe in user context\n");
+    page_fault_error (f, fault_addr, not_present, write, user);
+  }
+  
+  /* Find page in page table */
+  page = page_find(upage, sup);
     
-    stack_pointer = f->esp;
-        
-    /* If the stack pointer is not safe, kill the process */
-    if (!is_user_vaddr(stack_pointer) && user) {
-      //printf("Stack pointer wasn't safe\n");
-      page_fault_error (f, fault_addr, not_present, write, user);
+  /* If the page was found, but isn't - has been swapped out */
+  if (page != NULL) {
+    
+    /* If page access was write and page is marked read only - kill the process */
+    if ((write && !page->writable)) 
+    {
+      //printf("Page access was write and page is read-only\n");
+      page_fault_error(f, fault_addr, not_present, write, user);
     }
-    
-    /* Getting lower address of page */
-    upage = (uint8_t*)(lower_page_bound (fault_addr));
-    
+  }
+  
+  if (not_present) {
+   
     /* Get page table from process */
     sup = thread_current()->process->sup_table;
-    
-    /* Find page in page table */
-    page = page_find(upage, sup);
-    
-    /* The page should be there, but isn't - has been swapped out */
-    if (page != NULL) {
-      /* If page access was write and page is marked read only - kill the process */
-      if ((write && !page->writable)) 
-      {
-        //printf("Page access was write and page is read-only\n");
-        page_fault_error(f, fault_addr, not_present, write, user);
-      }
-      
-      /* If the page hasn't been loaded - is exectuable/mmaped file - load_page from disk */
+    if (page != NULL) {    
+    /* If the page hasn't been loaded - is exectuable/mmaped file - load_page from disk */
       if (!page->loaded) 
       {
         load_page(page);
       }
-      
+        
       /* Otherwise page has been swapped out - load from swap */
       else 
       {
         swap_in(page);
       }
     }
+    
     /* Or check if just below stack pointer */
     else if ((int)stack_pointer - (int)fault_addr <= 32) {
-      
+        
       /* If the address will grow the stack beyond the max size, kill the process */
       if (fault_addr < MAX_STACK_ADDRESS) {
         //printf("Stack has grown too large\n");
@@ -222,36 +224,25 @@ page_fault (struct intr_frame *f)
       
       /* Get a user page */
       kpage = frame_get(PAL_USER, page);
-      
+        
       /* Try to grow stack - if you can't grow it, kill the process */
       if (kpage == NULL || !install_page(upage, kpage, true)) {
         //printf("Stack couldn't be grown\n");
         page_fault_error(f, fault_addr, not_present, write, user);
       }
-      
+        
       /* Add the new page to the page table */
       page = add_page(upage, true);
       page->loaded = page->valid = true;
+        
+    }
       
-    }    
-    
     /* Else trying to access memory process isn't supposed to, kill the process */
     else {
       //printf("Fell through all cases\n");
       page_fault_error(f, fault_addr, not_present, write, user);
     }
   }
-  
-  
-  /* To implement virtual memory, delete the rest of the function
-     body, and replace it with code that brings in the page to
-     which fault_addr refers. */
-  /*printf ("Page fault at %p: %s error %s page in %s context.\n",
-          fault_addr,
-          not_present ? "not present" : "rights violation",
-          write ? "writing" : "reading",
-          user ? "user" : "kernel");
-  kill (f); */
 }
 
 static void
