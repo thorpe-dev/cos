@@ -164,7 +164,6 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
   
   sup = thread_current()->process->sup_table;
-
     
   /* If address is in kernel space or we got a kernel page fault, kill f */
   if (!is_user_vaddr(fault_addr) && user) {
@@ -194,13 +193,13 @@ page_fault (struct intr_frame *f)
     /* The page should be there, but isn't - has been swapped out */
     if (page != NULL) {
       /* If page access was write and page is marked read only - kill the process */
-      if (write && !page->writable) 
+      if ((write && !page->writable)) 
       {
         //printf("Page access was write and page is read-only\n");
         page_fault_error(f, fault_addr, not_present, write, user);
       }
       
-      /* If the page hasn't been loaded - is exectuable file - load_page from disk */
+      /* If the page hasn't been loaded - is exectuable/mmaped file - load_page from disk */
       if (!page->loaded) 
       {
         load_page(page);
