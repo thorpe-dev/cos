@@ -36,7 +36,7 @@ swap_out(struct page* sup_page)
 {
   unsigned int swap_page_idx;
   
-  printf("SWAP OUT, upage = %X\n", sup_page->upage);
+  //printf("SWAP OUT, upage = %X\n", sup_page->upage);
   
   lock_acquire(&lock);
   
@@ -77,7 +77,7 @@ swap_in(struct page* sup_page)
   void* kpage;
   void* data;
 
-  printf("SWAP IN, upage = %X\n", sup_page->upage);
+  //printf("SWAP IN, upage = %X\n", sup_page->upage);
   
   ASSERT(sup_page->loaded);
   ASSERT(sup_page->owner == thread_current());
@@ -103,7 +103,7 @@ swap_in(struct page* sup_page)
 void
 swap_free(struct page* sup_page)
 {
-  printf("SWAP FREE, upage = %X\n", sup_page->upage);
+  //printf("SWAP FREE, upage = %X\n", sup_page->upage);
   
   lock_acquire(&lock);
   ASSERT(sup_page->loaded);
