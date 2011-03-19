@@ -39,6 +39,10 @@ struct hash_elem
 #define hash_entry(HASH_ELEM, STRUCT, MEMBER)                   \
         ((STRUCT *) ((uint8_t *) &(HASH_ELEM)->list_elem        \
                      - offsetof (STRUCT, MEMBER.list_elem)))
+                     
+#define list_elem_to_hash_elem(LIST_ELEM)                       \
+        list_entry(LIST_ELEM, struct hash_elem, list_elem)
+
 
 /* Computes and returns the hash value for hash element E, given
    auxiliary data AUX. */
