@@ -3,7 +3,7 @@
 #include "threads/palloc.h"
 
 struct frame {
-  void* sup_page;
+  struct page* sup_page;
   // TODO: Add extra information for eviction
 };
 

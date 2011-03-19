@@ -17,15 +17,14 @@ static struct lock lock;
 static void write_out(block_sector_t sec, void* data);
 static block_sector_t idx_to_sec(unsigned int swap_index);
 
-/* TODO: When a process exits, free up any allocated swap space */
-
-
 void
 swap_init(void)
 {
   swap_area = block_get_role(BLOCK_SWAP);
 
   swap_state = bitmap_create((block_size(swap_area) * BLOCK_SECTOR_SIZE) / PGSIZE);
+  
+  lock_init(&lock);
 }
 
 
@@ -36,7 +35,7 @@ void
 swap_out(struct page* sup_page)
 {
   unsigned int swap_page_idx;
-  
+
   lock_acquire(&lock);
   
   /* No swap yet allocated - has not been swapped out before */
@@ -63,11 +62,9 @@ swap_out(struct page* sup_page)
   {
     write_out(idx_to_sec(sup_page->swap_idx), sup_page->upage);
   }
-
-  sup_page->valid = false;
-  // TODO: Remove sup_page->upage from page directory
   
   frame_free(sup_page);
+  
   lock_release(&lock);
 }
 
@@ -75,26 +72,28 @@ void
 swap_in(struct page* sup_page)
 {
   block_sector_t sec;
+  uint32_t swap_idx;
   void* kpage;
   void* data;
-
-  lock_acquire(&lock);
-
-  ASSERT(sup_page->loaded);
+  unsigned int i;
+  
   //ASSERT(sup_page->owner == thread_current());
   ASSERT(!sup_page->valid);
 
-  /* Set data to location of some free PGSIZE area in RAM */
+  swap_idx = sup_page->swap_idx;
+  /* Set kpage to location of some free PGSIZE area in RAM */
   kpage = frame_get(PAL_USER, sup_page);
+  // frame_get clobbers sup_page->swap_idx - we must preserve it
+  sup_page->swap_idx = swap_idx;
+
+  lock_acquire(&lock);
   
-  printf("SWAP IN\n");
-  install_page(sup_page->upage, kpage, true); //TODO: fix writable
-  
-  sec = idx_to_sec(sup_page->swap_idx);
+  install_page(sup_page->upage, kpage, sup_page->writable);
+   
+  sec = idx_to_sec(swap_idx);
   data = sup_page->upage;  
-  while(sec < PGSIZE/BLOCK_SECTOR_SIZE) {
-    block_read(swap_area, sec++, data);
-    data += BLOCK_SECTOR_SIZE;
+  for(i=0;i < PGSIZE/BLOCK_SECTOR_SIZE;i++) {
+    block_read(swap_area, sec+i, data+i*BLOCK_SECTOR_SIZE);
   }
   
   lock_release(&lock);
@@ -116,9 +115,9 @@ swap_free(struct page* sup_page)
 static void
 write_out(block_sector_t sec, void* data)
 {
-  while(sec < PGSIZE/BLOCK_SECTOR_SIZE) {
-    block_write(swap_area, sec++, data);
-    data += BLOCK_SECTOR_SIZE;
+  unsigned int i;
+  for(i=0;i < PGSIZE/BLOCK_SECTOR_SIZE;i++) {
+    block_write(swap_area, sec+i, data+i*BLOCK_SECTOR_SIZE);
   }
 }
 
