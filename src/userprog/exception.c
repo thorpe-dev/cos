@@ -5,6 +5,7 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
 #include "userprog/pagedir.h"
 #include <stdint.h>
 #include "userprog/process.h"
@@ -71,7 +72,7 @@ exception_init (void)
 void
 exception_print_stats (void) 
 {
-  printf ("Exception: %lld page faults\n", page_fault_cnt);
+  //printf ("Exception: %lld page faults\n", page_fault_cnt);
 }
 
 /* Handler for an exception (probably) caused by a user process. */
@@ -153,6 +154,7 @@ page_fault (struct intr_frame *f)
      be assured of reading CR2 before it changed). */
   intr_enable ();
   
+  
   /* Count page faults. */
   page_fault_cnt++;
 
@@ -172,21 +174,26 @@ page_fault (struct intr_frame *f)
   /* Get page base of fault addr */
   upage = (uint8_t*)(lower_page_bound (fault_addr));
   
+  //printf("Fault addr = %X\n", upage);
+  //debug_page_table(sup);
+
+  
   /* Get the stack pointer */
   stack_pointer = f->esp;
           
   /* If the stack pointer is not safe, kill the process */
-  if (!is_user_vaddr(stack_pointer) && user) {
+  if (!is_user_vaddr(stack_pointer) && user) 
+  {
     //printf("Stack pointer wasn't safe in user context\n");
     page_fault_error (f, fault_addr, not_present, write, user);
   }
   
   /* Find page in page table */
-  page = page_find(upage, sup);
+  page = page_find (upage, sup);
     
   /* If the page was found, but isn't - has been swapped out */
-  if (page != NULL) {
-    
+  if (page != NULL) 
+  {
     /* If page access was write and page is marked read only - kill the process */
     if ((write && !page->writable)) 
     {
@@ -197,8 +204,6 @@ page_fault (struct intr_frame *f)
   
   if (not_present) {
    
-    /* Get page table from process */
-    sup = thread_current()->process->sup_table;
     if (page != NULL) {    
     /* If the page hasn't been loaded - is exectuable/mmaped file - load_page from disk */
       if (!page->loaded) 
@@ -212,29 +217,31 @@ page_fault (struct intr_frame *f)
         swap_in(page);
       }
     }
-    
-    /* Or check if just below stack pointer */
-    else if ((int)stack_pointer - (int)fault_addr <= 32) {
-        
+      
+    else if (((int)stack_pointer - (int)fault_addr <= 32) 
+      || ((fault_addr > MAX_STACK_ADDRESS) && (fault_addr < PHYS_BASE) && !user)) {
+      
       /* If the address will grow the stack beyond the max size, kill the process */
       if (fault_addr < MAX_STACK_ADDRESS) {
         //printf("Stack has grown too large\n");
         page_fault_error (f, fault_addr, not_present, write, user);
       }
-      
+      page = malloc(sizeof(struct page));
+      page->upage = upage;
       /* Get a user page */
       kpage = frame_get(PAL_USER, page);
-        
+            
       /* Try to grow stack - if you can't grow it, kill the process */
       if (kpage == NULL || !install_page(upage, kpage, true)) {
         //printf("Stack couldn't be grown\n");
         page_fault_error(f, fault_addr, not_present, write, user);
       }
-        
+      page->file = NULL;
+      
       /* Add the new page to the page table */
-      page = add_page(upage, true);
-      page->loaded = page->valid = true;
-        
+      page_table_add(page, sup);
+      page->loaded = page->valid = page->writable = true;
+      page->owner = thread_current();
     }
       
     /* Else trying to access memory process isn't supposed to, kill the process */

@@ -1,4 +1,5 @@
 #include "userprog/pagedir.h"
+#include "userprog/exception.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
@@ -270,7 +271,6 @@ bool
 is_safe_ptr(const void* vaddr)
 {
   uint32_t *ptr;
-  
   
   /*Check pointer not NULL and its not pointing to a kernel address*/
   if(vaddr == NULL || !is_user_vaddr (vaddr))

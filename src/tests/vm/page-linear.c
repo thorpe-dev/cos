@@ -5,6 +5,7 @@
 #include "tests/arc4.h"
 #include "tests/lib.h"
 #include "tests/main.h"
+#include <stdio.h>
 
 #define SIZE (2 * 1024 * 1024)
 

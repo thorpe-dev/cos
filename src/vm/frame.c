@@ -27,10 +27,10 @@ frame_init(int _count)
 static void
 frame_add(unsigned int frame_index, struct page* sup_page)
 {
-  ASSERT(sup_page->valid);
   ASSERT(table[frame_index] == NULL);
   table[frame_index] = malloc(sizeof(struct frame));
   table[frame_index]->sup_page = sup_page;
+  sup_page->valid = true;
 }
 
 static void
@@ -118,6 +118,7 @@ frame_free(struct page* sup_page)
   
   ASSERT(sup_page->valid);
   
+  sup_page->valid = false;
   kpage = pagedir_get_page(sup_page->owner->pagedir, sup_page->upage);
   pagedir_clear_page(sup_page->owner->pagedir, sup_page->upage);
   palloc_free_page(kpage);

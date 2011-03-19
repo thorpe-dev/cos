@@ -36,9 +36,9 @@ swap_out(struct page* sup_page)
 {
   unsigned int swap_page_idx;
   
-  lock_acquire(&lock);
+  printf("SWAP OUT, upage = %X\n", sup_page->upage);
   
-  printf("sup_page = %X\n", sup_page);
+  lock_acquire(&lock);
   
   /* No swap yet allocated - has not been swapped out before */
   if(sup_page->swap_idx == NOT_YET_SWAPPED)
@@ -65,7 +65,6 @@ swap_out(struct page* sup_page)
     write_out(idx_to_sec(sup_page->swap_idx), sup_page->upage);
   }
 
-  sup_page->valid = false;
   frame_free(sup_page);
   
   lock_release(&lock);
@@ -78,14 +77,16 @@ swap_in(struct page* sup_page)
   void* kpage;
   void* data;
 
-  lock_acquire(&lock);
-
+  printf("SWAP IN, upage = %X\n", sup_page->upage);
+  
   ASSERT(sup_page->loaded);
   ASSERT(sup_page->owner == thread_current());
   ASSERT(!sup_page->valid);
 
   /* Set data to location of some free PGSIZE area in RAM */
   kpage = frame_get(PAL_USER, sup_page);
+
+  lock_acquire(&lock);
   
   install_page(sup_page->upage, kpage, sup_page->writable);
   
@@ -102,6 +103,8 @@ swap_in(struct page* sup_page)
 void
 swap_free(struct page* sup_page)
 {
+  printf("SWAP FREE, upage = %X\n", sup_page->upage);
+  
   lock_acquire(&lock);
   ASSERT(sup_page->loaded);
   ASSERT(!sup_page->valid);

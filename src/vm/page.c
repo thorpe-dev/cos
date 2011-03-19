@@ -198,7 +198,9 @@ debug_page_table (struct sup_table* sup)
   printf("\n");
 }
 
-void page_free(struct page* sup_page){
+void
+page_free(struct page* sup_page)
+{
   ASSERT(sup_page->owner == thread_current());
   
   if(sup_page->loaded)

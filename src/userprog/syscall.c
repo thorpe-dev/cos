@@ -644,7 +644,7 @@ check_buffer_safety (const void* buffer, int size, bool write)
       page = page_find (lower_page_bound(temp), thread_current()->process->sup_table);
       if (page != NULL && !page->writable)
         thread_exit();
-    }  
+    }
   }
 }
 
