@@ -37,7 +37,7 @@ static void syscall_mmap    (uint32_t* eax, int fd, const void* addr);
 static void syscall_munmap  (mapid_t mapid);
 
 static void check_safe_ptr (const void* ptr, int no_args);
-static void check_buffer_safety (const void* buffer, int size);
+static void check_buffer_safety (const void* buffer, int size, bool write);
 static bool check_pages (const void* addr, int size, struct sup_table* sup);
 
 
@@ -268,7 +268,7 @@ static void
 syscall_read(uint32_t* eax, int fd, void* buffer, unsigned int size)
 {
   
-  check_buffer_safety(buffer, size);
+  check_buffer_safety(buffer, size, true);
   
   load_buffer_pages(buffer, size);
   
@@ -308,7 +308,7 @@ syscall_read(uint32_t* eax, int fd, void* buffer, unsigned int size)
 static void
 syscall_write(uint32_t* eax, int fd, const void *buffer, unsigned int size)
 {
-  check_buffer_safety(buffer, size);
+  check_buffer_safety(buffer, size, false);
   
   int write_size;
   struct file* file;
@@ -624,19 +624,27 @@ find_mmap (mapid_t id)
 
 /* Checks the buffer is safe by checking at each buffer + PGSIZE */
 static void 
-check_buffer_safety (const void* buffer, int size)
+check_buffer_safety (const void* buffer, int size, bool write)
 {
   int i;
-  
-  /* Check if buffer and if the end of the buffer are safe */
-  if ( !is_safe_ptr(buffer) || !is_safe_ptr(buffer + size))
+  struct page* page;
+  void* temp;
+    
+  /* Check if the buffer and that the end of the buffer are safe */
+  if (!is_safe_ptr(buffer + size))
     thread_exit();
   
   /* Check if at each PGSIZE interval the buffer is safe */
-  for(i = 1; i <= size / PGSIZE ; i++)
+  for(i = 0; i <= size / PGSIZE ; i++)
   {
-    if( !is_safe_ptr(buffer + (i*PGSIZE)))
+    temp = (void*)buffer + (i*PGSIZE);
+    if( !is_safe_ptr(temp))
       thread_exit();
+    else if (write) {
+      page = page_find (lower_page_bound(temp), thread_current()->process->sup_table);
+      if (page != NULL && !page->writable)
+        thread_exit();
+    }  
   }
 }
 
