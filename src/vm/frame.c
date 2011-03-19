@@ -76,7 +76,7 @@ frame_get(enum palloc_flags flags, struct page* sup_page)
         else
           current_score = 1;
 
-        if(current_score > best_score)
+        if(current_score >= best_score)
         {
           best = table[i];
           best_score = current_score;
@@ -96,6 +96,7 @@ frame_get(enum palloc_flags flags, struct page* sup_page)
   }
   
   frame_add(page_to_frame_idx(kpage), sup_page);
+  sup_page->swap_idx = NOT_YET_SWAPPED;
   
   lock_release(&lock);
   
