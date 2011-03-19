@@ -494,9 +494,7 @@ un_map_file (struct mmap_file* m, bool kill_thread)
   
   sup = thread_current()->process->sup_table;
   
-  lock_acquire(&filesys_lock);
   file = m->file;
-  lock_release(&filesys_lock);
 
   
   /*  Go through pages for mapped file - if the page is null do nothing 
@@ -512,7 +510,7 @@ un_map_file (struct mmap_file* m, bool kill_thread)
         if (pagedir_is_dirty (thread_current()->pagedir, (const void*)p->upage)) {
           /* If the number of bytes written isn't the same as expect, kill the thread */
           lock_acquire(&filesys_lock);
-          if ((file_write_at(file, (const void*)p->upage,p->read_bytes,p->ofs) != (off_t)p->read_bytes) && kill_thread)
+          if ((file_write_at(p->file, (const void*)(p->upage),(off_t)p->read_bytes,p->ofs) != (off_t)p->read_bytes) && kill_thread)
           {
             lock_release(&filesys_lock);
             thread_exit();

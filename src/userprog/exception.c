@@ -177,7 +177,7 @@ page_fault (struct intr_frame *f)
     stack_pointer = f->esp;
         
     /* If the stack pointer is not safe, kill the process */
-    if (!is_safe_ptr(stack_pointer) && user) {
+    if (!is_user_vaddr(stack_pointer) && user) {
       //printf("Stack pointer wasn't safe\n");
       page_fault_error (f, fault_addr, not_present, write, user);
     }
@@ -204,17 +204,6 @@ page_fault (struct intr_frame *f)
       if (!page->loaded) 
       {
         load_page(page);
-        
-        //if (kpage == NULL) 
-        //{
-          //printf("Page failed to be found\n");
-          //page_fault_error(f, fault_addr, not_present, write, user);
-        //}
-        
-        //else
-          //page->kpage = kpage;
-        
-       
       }
       
       /* Otherwise page has been swapped out - load from swap */

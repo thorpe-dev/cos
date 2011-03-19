@@ -188,13 +188,13 @@ print_page (struct hash_elem* e, void* aux UNUSED)
   
   printf("Page addr = %X\t",page->upage);
   printf("Page loaded = %d\n", page->loaded);
-    
 }
 
 void
 debug_page_table (struct sup_table* sup)
 {
   hash_apply (&sup->page_table,print_page);
+  printf("\n");
 }
 
 void page_free(struct page* sup_page){
