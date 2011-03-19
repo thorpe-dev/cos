@@ -81,7 +81,7 @@ swap_in(struct page* sup_page)
   lock_acquire(&lock);
 
   ASSERT(sup_page->loaded);
-  ASSERT(sup_page->owner == thread_current());
+  //ASSERT(sup_page->owner == thread_current());
   ASSERT(!sup_page->valid);
 
   /* Set data to location of some free PGSIZE area in RAM */

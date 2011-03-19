@@ -155,6 +155,7 @@ page_fault (struct intr_frame *f)
   intr_enable ();
   
   
+  
   /* Count page faults. */
   page_fault_cnt++;
 
