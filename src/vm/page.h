@@ -8,32 +8,28 @@
 
 /* This file will define a page struct*/
 
-struct page {
-  
+struct page 
+{
   struct file* file;    /* Pointer to file we expect to find */  
   uint8_t* upage;       /* User virtual address of page*/
-  off_t ofs;            /* Offset into process exec file which will be used to load actual pages - map them to kernel pages ??*/
-//  uint8_t* kpage;       /* Kernel virtual address of page - will not be mapped to start with*/
-  uint32_t read_bytes; /* Number of bytes that need to be read */
-  uint32_t zero_bytes; /* Number of bytes that need to be zeroed */
+  off_t ofs;            /* Offset into process file if page mapped from a file */
+  uint32_t read_bytes;  /* Number of bytes that need to be read */
+  uint32_t zero_bytes;  /* Number of bytes that need to be zeroed */
   
   bool writable;        /* Whether the page is writable or not */
   bool loaded;          /* Has the page been loaded yet - will not be before being mapped to a kpage*/
-  bool valid;       /* If the page has been loaded is it mapped to a frame or swap */
+  bool valid;           /* If the page has been loaded is it mapped to a frame or swap */
   
-  struct thread* owner;
-  uint32_t swap_idx;
+  struct thread* owner; /* Pointer to the thread it belongs to */
+  uint32_t swap_idx;    /* Index into swap if page is in swap */
   
   struct hash_elem elem;
-
 };
 
-struct sup_table {
-  
-  struct process* process;
-  struct hash page_table;
-
-  
+struct sup_table 
+{ 
+  struct process* process; /* Pointer to the process the sup_table belongs to */
+  struct hash page_table;  /* The hash in which pages are stored */
 };
 
 bool page_table_init (struct sup_table* sup);
