@@ -62,12 +62,12 @@ process_execute (const char *command)
   list_init(&new_process->mmaped_files);
   new_process->next_fd = 2;
   
-  /* Initialise the processes Supplemental page table*/
+  /* Initialise the process' Supplemental page table*/
   new_process->sup_table = malloc(sizeof(struct sup_table));
   page_table_init(new_process->sup_table);
   new_process->sup_table->process = new_process;
-  if (thread_current()->process != NULL)
-    page_table_copy(thread_current()->process->sup_table, new_process->sup_table);
+  //if (thread_current()->process != NULL)
+    //page_table_copy(thread_current()->process->sup_table, new_process->sup_table);
 
 
   /* Push this new process into the current(parent) process list of children */
@@ -376,8 +376,8 @@ load (char* command, void (**eip) (void), void **esp)
     
   file_deny_write(file);
   
-  if (page_table_empty(t->process->sup_table))
-  {
+  //if (page_table_empty(t->process->sup_table))
+  //{
     /* Read and verify executable header. */
     if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
         || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
@@ -449,7 +449,7 @@ load (char* command, void (**eip) (void), void **esp)
             break;
           }
       }
-  }
+  //}
   
     
   /* Set up stack. */
