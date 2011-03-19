@@ -17,15 +17,14 @@ static struct lock lock;
 static void write_out(block_sector_t sec, void* data);
 static block_sector_t idx_to_sec(unsigned int swap_index);
 
-/* TODO: When a process exits, free up any allocated swap space */
-
-
 void
 swap_init(void)
 {
   swap_area = block_get_role(BLOCK_SWAP);
 
   swap_state = bitmap_create((block_size(swap_area) * BLOCK_SECTOR_SIZE) / PGSIZE);
+  
+  lock_init(&lock);
 }
 
 
@@ -38,6 +37,8 @@ swap_out(struct page* sup_page)
   unsigned int swap_page_idx;
   
   lock_acquire(&lock);
+  
+  printf("sup_page = %X\n", sup_page);
   
   /* No swap yet allocated - has not been swapped out before */
   if(sup_page->swap_idx == NOT_YET_SWAPPED)
@@ -65,9 +66,8 @@ swap_out(struct page* sup_page)
   }
 
   sup_page->valid = false;
-  // TODO: Remove sup_page->upage from page directory
-  
   frame_free(sup_page);
+  
   lock_release(&lock);
 }
 

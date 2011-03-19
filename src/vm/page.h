@@ -29,11 +29,8 @@ struct page {
 };
 
 struct sup_table {
-  
   struct process* process;
   struct hash page_table;
-
-  
 };
 
 bool page_table_init (struct sup_table* sup);
