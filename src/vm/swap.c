@@ -103,7 +103,6 @@ void
 swap_free(struct page* sup_page)
 {
   lock_acquire(&lock);
-  ASSERT(sup_page->loaded);
   ASSERT(!sup_page->valid);
   
   bitmap_flip(swap_state, sup_page->swap_idx);
