@@ -61,6 +61,14 @@ process_execute (const char *command)
   list_init(&new_process->open_files);
   list_init(&new_process->mmaped_files);
   new_process->next_fd = 2;
+  
+  /* Initialise the processes Supplemental page table*/
+  new_process->sup_table = malloc(sizeof(struct sup_table));
+  page_table_init(new_process->sup_table);
+  new_process->sup_table->process = new_process;
+  if (thread_current()->process != NULL)
+    page_table_copy(thread_current()->process->sup_table, new_process->sup_table);
+
 
   /* Push this new process into the current(parent) process list of children */
   list_push_front(&thread_current()->children, &new_process->child_elem);
@@ -101,12 +109,7 @@ start_process (void *process_)
 
   /* Set current thread's process descriptor to the one passed to us */
   thread->process = process;
-  
-  /* Initialise the processes Supplemental page table*/
-  process->sup_table = malloc(sizeof(struct sup_table));
-  page_table_init(process->sup_table);
-  process->sup_table->process = process;
-  
+    
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -372,78 +375,82 @@ load (char* command, void (**eip) (void), void **esp)
   t->process->process_file = file;
     
   file_deny_write(file);
+  
+  if (page_table_empty(t->process->sup_table))
+  {
+    /* Read and verify executable header. */
+    if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
+        || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
+        || ehdr.e_type != 2
+        || ehdr.e_machine != 3
+        || ehdr.e_version != 1
+        || ehdr.e_phentsize != sizeof (struct Elf32_Phdr)
+        || ehdr.e_phnum > 1024) 
+      {
+        printf ("load: %s: error loading executable\n", t->name);
+        goto done; 
+      }
+      
+    /* Read program headers. */
+    file_ofs = ehdr.e_phoff;
+    for (i = 0; i < ehdr.e_phnum; i++) 
+      {
+        struct Elf32_Phdr phdr;
 
-  /* Read and verify executable header. */
-  if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
-      || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
-      || ehdr.e_type != 2
-      || ehdr.e_machine != 3
-      || ehdr.e_version != 1
-      || ehdr.e_phentsize != sizeof (struct Elf32_Phdr)
-      || ehdr.e_phnum > 1024) 
-    {
-      printf ("load: %s: error loading executable\n", t->name);
-      goto done; 
-    }
-    
-  /* Read program headers. */
-  file_ofs = ehdr.e_phoff;
-  for (i = 0; i < ehdr.e_phnum; i++) 
-    {
-      struct Elf32_Phdr phdr;
-
-      if (file_ofs < 0 || file_ofs > file_length (file))
-        goto done;
-      file_seek (file, file_ofs);
-
-      if (file_read (file, &phdr, sizeof phdr) != sizeof phdr)
-        goto done;
-      file_ofs += sizeof phdr;
-      switch (phdr.p_type) 
-        {
-        case PT_NULL:
-        case PT_NOTE:
-        case PT_PHDR:
-        case PT_STACK:
-        default:
-          /* Ignore this segment. */
-          break;
-        case PT_DYNAMIC:
-        case PT_INTERP:
-        case PT_SHLIB:
+        if (file_ofs < 0 || file_ofs > file_length (file))
           goto done;
-        case PT_LOAD:
-          if (validate_segment (&phdr, file)) 
-            {
-              bool writable = (phdr.p_flags & PF_W_P) != 0;
-              uint32_t file_page = phdr.p_offset & ~PGMASK;
-              uint32_t mem_page = phdr.p_vaddr & ~PGMASK;
-              uint32_t page_offset = phdr.p_vaddr & PGMASK;
-              uint32_t read_bytes, zero_bytes;
-              if (phdr.p_filesz > 0)
-                {
-                  /* Normal segment.
-                     Read initial part from disk and zero the rest. */
-                  read_bytes = page_offset + phdr.p_filesz;
-                  zero_bytes = (ROUND_UP (page_offset + phdr.p_memsz, PGSIZE)
-                                - read_bytes);
-                }
-              else 
-                {
-                  /* Entirely zero.
-                     Don't read anything from disk. */
-                  read_bytes = 0;
-                  zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
-                }
-              if (!load_segment (file, file_page, (void *) mem_page,
-                                 read_bytes, zero_bytes, writable))
-                goto done;
-            }
-          else
+        file_seek (file, file_ofs);
+
+        if (file_read (file, &phdr, sizeof phdr) != sizeof phdr)
+          goto done;
+        file_ofs += sizeof phdr;
+        switch (phdr.p_type) 
+          {
+          case PT_NULL:
+          case PT_NOTE:
+          case PT_PHDR:
+          case PT_STACK:
+          default:
+            /* Ignore this segment. */
+            break;
+          case PT_DYNAMIC:
+          case PT_INTERP:
+          case PT_SHLIB:
             goto done;
-          break;
-        }
-    }
+          case PT_LOAD:
+            if (validate_segment (&phdr, file)) 
+              {
+                bool writable = (phdr.p_flags & PF_W_P) != 0;
+                uint32_t file_page = phdr.p_offset & ~PGMASK;
+                uint32_t mem_page = phdr.p_vaddr & ~PGMASK;
+                uint32_t page_offset = phdr.p_vaddr & PGMASK;
+                uint32_t read_bytes, zero_bytes;
+                if (phdr.p_filesz > 0)
+                  {
+                    /* Normal segment.
+                      Read initial part from disk and zero the rest. */
+                    read_bytes = page_offset + phdr.p_filesz;
+                    zero_bytes = (ROUND_UP (page_offset + phdr.p_memsz, PGSIZE)
+                                  - read_bytes);
+                  }
+                else 
+                  {
+                    /* Entirely zero.
+                      Don't read anything from disk. */
+                    read_bytes = 0;
+                    zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
+                  }
+                if (!load_segment (file, file_page, (void *) mem_page,
+                                  read_bytes, zero_bytes, writable))
+                  goto done;
+              }
+            else
+              goto done;
+            break;
+          }
+      }
+  }
+  
     
   /* Set up stack. */
   if (!setup_stack (esp, command))

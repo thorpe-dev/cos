@@ -77,7 +77,7 @@ swap_in(struct page* sup_page)
   void* data;
   unsigned int i;
   
-  ASSERT(sup_page->owner == thread_current());
+  //ASSERT(sup_page->owner == thread_current());
   ASSERT(!sup_page->valid);
 
   swap_idx = sup_page->swap_idx;

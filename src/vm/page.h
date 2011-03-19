@@ -35,12 +35,15 @@ struct sup_table
 bool page_table_init (struct sup_table* sup);
 bool page_table_add (struct page* p, struct sup_table* table);
 bool page_table_remove (struct page* p, struct sup_table* table);
+bool page_table_empty (struct sup_table* table);
 struct page* page_table_find (struct page* p, struct sup_table* table);
 struct page* add_page (uint8_t* upage, bool writable);
 struct page* page_find (uint8_t* upage, struct sup_table* sup);
 uint32_t* lookup_sup_page (struct process* process, const void* vaddr);
 void* lower_page_bound (const void* vaddr);
 void load_buffer_pages(const void* buffer, unsigned int size);
+void page_table_copy (struct sup_table* source, struct sup_table* dest);
+
 
 
 void page_table_destroy(struct sup_table* sup);

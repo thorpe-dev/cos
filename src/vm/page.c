@@ -12,6 +12,8 @@
 static bool page_less (const struct hash_elem* p1, const struct hash_elem* p2, void* aux);
 static unsigned page_hash (const struct hash_elem* elem, void* aux);
 static void page_destroy (struct hash_elem* e, void* aux);
+static void page_copy (struct hash_elem* e, void* sup_table);
+
 
 static void print_page (struct hash_elem* e, void* aux UNUSED);
 
@@ -50,6 +52,12 @@ page_table_remove (struct page* p, struct sup_table* table)
     free(p);
   
   return success;
+}
+
+bool
+page_table_empty (struct sup_table* table)
+{
+  return hash_empty (&table->page_table);
 }
 
 struct page*
@@ -179,6 +187,38 @@ page_destroy (struct hash_elem* e, void* aux UNUSED)
   free(sup_page); 
 }
 
+/*  Given an additional page table, "copies" the entries that map to the data + code segment 
+    to the new page table */
+static void
+page_copy (struct hash_elem* e, void* sup_table)
+{
+  struct sup_table* sup = (struct sup_table*)sup_table;
+  struct page* page = hash_entry(e, struct page, elem);
+  printf("page->upage = %p\n",page->upage);
+  
+  if (page->file == thread_current()->process->process_file)
+    page_table_add(page, sup);  
+}
+
+void
+page_table_copy (struct sup_table* source, struct sup_table* dest)
+{
+  size_t i;
+  struct hash* h = &source->page_table;
+  
+  for (i = 0; i < h->bucket_cnt; i++) 
+    {
+      struct list *bucket = &h->buckets[i];
+      struct list_elem *elem, *next;
+
+      for (elem = list_begin (bucket); elem != list_end (bucket); elem = next) 
+        {
+          next = list_next (elem);
+          page_copy (list_elem_to_hash_elem (elem), (void*)dest);
+        }
+    }
+}
+
 /* Debug functions */
 
 static void
@@ -191,6 +231,7 @@ print_page (struct hash_elem* e, void* aux UNUSED)
   printf("Page writable = %d\n", page->writable);
 }
 
+
 void
 debug_page_table (struct sup_table* sup)
 {
@@ -201,7 +242,7 @@ debug_page_table (struct sup_table* sup)
 void
 page_free(struct page* sup_page)
 {
-  ASSERT(sup_page->owner == thread_current());
+  //ASSERT(sup_page->owner == thread_current());
   
   if(sup_page->loaded)
   {

@@ -279,7 +279,10 @@ is_safe_ptr(const void* vaddr)
   /* Check pointer points to mapped space */
   ptr = lookup_sup_page (thread_current()->process, lower_page_bound(vaddr));
   if (ptr == NULL)
-    return false;
+    //if ((vaddr < PHYS_BASE) && (vaddr > MAX_STACK_SIZE))
+      //return true;
+    //else
+      return false;
   
  
   /*Otherwise the pointer is valid*/
