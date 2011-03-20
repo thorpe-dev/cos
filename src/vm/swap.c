@@ -6,13 +6,9 @@
 #include "threads/synch.h"
 #include "userprog/pagedir.h"
 #include "threads/thread.h"
-<<<<<<< HEAD
 #include "vm/frame.h"
 #include "filesys/filesys.h"
 #include "filesys/file.h"
-
-=======
->>>>>>> 79a81ccc6a0df895c86849fd6b3a25f54f370123
 
 //TODO: Remove (debug)
 #include <stdio.h>
