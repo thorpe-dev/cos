@@ -62,12 +62,10 @@ process_execute (const char *command)
   list_init(&new_process->mmaped_files);
   new_process->next_fd = 2;
   
-  /* Initialise the processes Supplemental page table*/
+  /* Initialise the process' Supplemental page table*/
   new_process->sup_table = malloc(sizeof(struct sup_table));
   page_table_init(new_process->sup_table);
   new_process->sup_table->process = new_process;
-  if (thread_current()->process != NULL)
-    page_table_copy(thread_current()->process->sup_table, new_process->sup_table);
 
 
   /* Push this new process into the current(parent) process list of children */
@@ -76,6 +74,13 @@ process_execute (const char *command)
   /* Returns just the filename of the command to execute */
   strlcpy(file_name, command, PGSIZE);
   strtok_r(file_name, " ", &save_ptr);
+  
+  /*  If the thread's file name and the new threads file name is the same
+      copy the executable file's page structs - ensures sharing of 
+      data segments */
+  if (thread_current()->process != NULL && (thread_current()->name == file_name))
+    page_table_copy(thread_current()->process->sup_table, new_process->sup_table);
+
   
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, new_process);
@@ -376,6 +381,7 @@ load (char* command, void (**eip) (void), void **esp)
     
   file_deny_write(file);
   
+  //debug_page_table(t->process->sup_table);
   if (page_table_empty(t->process->sup_table))
   {
     /* Read and verify executable header. */

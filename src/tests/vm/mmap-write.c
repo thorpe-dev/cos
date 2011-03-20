@@ -18,6 +18,7 @@ test_main (void)
   mapid_t map;
   char buf[1024];
   
+  
   /* Write file via mmap. */
   CHECK (create ("sample.txt", strlen (sample)), "create \"sample.txt\"");
   CHECK ((handle = open ("sample.txt")) > 1, "open \"sample.txt\"");

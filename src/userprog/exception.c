@@ -175,7 +175,7 @@ page_fault (struct intr_frame *f)
   /* Get page base of fault addr */
   upage = (uint8_t*)(lower_page_bound (fault_addr));
   
-  //printf("Fault addr = %X\n", upage);
+  //printf("Fault addr = %p\n", fault_addr);
   //debug_page_table(sup);
 
   
