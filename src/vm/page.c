@@ -222,11 +222,11 @@ print_page (struct hash_elem* e, void* aux UNUSED)
 {
   struct page* page = hash_entry(e, struct page, elem);
   
-  printf("Page addr = %p\t",page->upage);
-  printf("Page valid = %d\t", page->valid);
-  printf("Page loaded = %d\t", page->loaded);
-  printf("Page writable = %d\t", page->writable);
-  printf("Page struct addr = %p\n", page);
+  printf("Upage = %p\t",page->upage);
+  printf("valid = %d\t", page->valid);
+  printf("loaded = %d\t", page->loaded);
+  printf("writable = %d\t", page->writable);
+  printf("struct addr = %p\n", page);
 }
 
 

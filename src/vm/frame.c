@@ -24,7 +24,8 @@ frame_init(int _count)
 static void
 frame_add(unsigned int frame_index, struct page* sup_page)
 {
-  ASSERT(table[frame_index] == NULL);
+  //TODO: why is this assert neccessary?
+  //ASSERT(table[frame_index] == NULL);
   table[frame_index] = malloc(sizeof(struct frame));
   table[frame_index]->sup_page = sup_page;
 }
@@ -32,7 +33,8 @@ frame_add(unsigned int frame_index, struct page* sup_page)
 static void
 frame_del(unsigned int frame_index)
 {
-  ASSERT(table[frame_index] != NULL);
+  //TODO: why is this assert neccessary?s
+  //ASSERT(table[frame_index] != NULL);
   free(table[frame_index]);
   table[frame_index] = NULL;
 }

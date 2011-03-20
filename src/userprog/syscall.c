@@ -295,13 +295,19 @@ syscall_read(uint32_t* eax, int fd, void* buffer, unsigned int size)
     /* Lock filesystem, read file, unlock */
     else 
     {
+      printf("buff = %p\n", buffer);
       lock_acquire(&filesys_lock);
+      printf("file length = %d\n", file_length(file));
       read_size = (int) file_read(file, buffer, size);
       lock_release(&filesys_lock);
+      printf("read size = %d\n", read_size);
     
       syscall_return_int (eax, read_size);
     }
   }
+  putbuf((void*)0xbffff000,PGSIZE);
+  printf("\n");
+  debug_page_table(thread_current()->process->sup_table);
 }
 
 static void
@@ -493,6 +499,7 @@ un_map_file (struct mmap_file* m, bool kill_thread)
   unsigned int i;
   struct page* p;
   struct file* file;
+  int write_size = 0;
   
   sup = thread_current()->process->sup_table;
   
@@ -512,8 +519,9 @@ un_map_file (struct mmap_file* m, bool kill_thread)
         if (pagedir_is_dirty (thread_current()->pagedir, (const void*)p->upage)) {
           /* If the number of bytes written isn't the same as expected, kill the thread */
           lock_acquire(&filesys_lock);
-          if ((file_write_at(p->file, (const void*)(p->upage),(off_t)p->read_bytes,p->ofs) != 
-            (off_t)p->read_bytes) && kill_thread)
+          write_size = (int)file_write_at(p->file, (const void*)(p->upage),(off_t)p->read_bytes,p->ofs);
+          
+          if ((write_size !=  (off_t)p->read_bytes) && kill_thread)
           {
             lock_release(&filesys_lock);
             thread_exit();
@@ -521,19 +529,6 @@ un_map_file (struct mmap_file* m, bool kill_thread)
           lock_release(&filesys_lock);
           page_table_remove (p, sup);
         }
-      }
-      else {
-        lock_acquire(&filesys_lock);
-        /* If the number of bytes written isn't the same as expected, kill the thread */
-        if ((file_write_at(file, (const void*)p->upage,p->read_bytes,p->ofs) != 
-          (off_t)p->read_bytes) && kill_thread)
-        {
-          lock_release(&filesys_lock);
-          thread_exit();
-        }
-        page_table_remove (p, sup);
-        
-        lock_release(&filesys_lock);
       }
     }
     else if (p != NULL)

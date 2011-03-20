@@ -14,10 +14,10 @@
 void
 test_main (void)
 {
-  int handle;
-  mapid_t map;
+  int handle = 0;
+  mapid_t map = 0;
   char buf[1024];
-  
+  int i;  
   
   /* Write file via mmap. */
   CHECK (create ("sample.txt", strlen (sample)), "create \"sample.txt\"");
@@ -27,8 +27,8 @@ test_main (void)
   munmap (map);
 
   /* Read back via read(). */
-  read (handle, buf, strlen (sample));
-  write(1, buf, strlen(sample));
+  i = read (handle, buf, strlen (sample));
+  printf("i = %d\n", i);
   CHECK (!memcmp (buf, sample, strlen (sample)),
          "compare read data against written data");
   close (handle);
