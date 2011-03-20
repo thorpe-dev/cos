@@ -255,11 +255,17 @@ MISSING STRUCTS?
 >> processes differ between swap pages and other pages.
 
 ?
+Pages which have been mmaped are treated just as any other page. The only difference is that in swap_out() theres a case dealing with eviction for mmap page (show case that does this).
 
 >> C3: Explain how you determine whether a new file mapping overlaps
 >> any existing segment.
 
-Not yet?
+WRITE NEATLY
+Pages have been added to the supplemental page table for all the code segment and the data segment. Pages have also been added for the first page in the stack (which is not lazily loaded), and for the very bottom of the stack.
+
+This means that when memory mapping a file the address the process is attempting to map to is checked with check_pages() to see whether it is not in one of the pages in the page table or whether its in between the stack top and stack bottom.
+
+If check_pages() fails it will return false and syscall_mmap() will return an exit status of -1 to the process's eax register, causing the process to exit cleanly.
 
 ---- RATIONALE ----
 
@@ -270,7 +276,8 @@ Not yet?
 >> implementation either does or does not share much of the code for
 >> the two situations.
 
-Not sure how we handle this?
+?
+Currently the kernel treats mmaped pages identically as data demanded-pages throughout the code. Only when checking if the page needs to be evicted will it be treated differently.
 
                SURVEY QUESTIONS
                ================
