@@ -181,10 +181,12 @@ static void
 page_destroy (struct hash_elem* e, void* aux UNUSED)
 {
   struct page* sup_page = hash_entry(e, struct page, elem);
-  
-  page_free(sup_page);
-  
-  free(sup_page); 
+  /*  If the current process is not the page owner, 
+      means the page is still being shared - don't do anything */
+  if (sup_page->owner == thread_current()) {
+    page_free(sup_page);
+    free(sup_page);
+  }
 }
 
 /*  Given an additional page table, "copies" the entries that map to the data + code segment 
@@ -194,9 +196,11 @@ page_copy (struct hash_elem* e, void* sup_table)
 {
   struct sup_table* sup = (struct sup_table*)sup_table;
   struct page* page = hash_entry(e, struct page, elem);
-  printf("page->upage = %p\n",page->upage);
+  //printf("page->upage = %p\n",page->upage);
   
-  if (page->file == thread_current()->process->process_file)
+  if ((page != NULL) 
+      && (page->file == thread_current()->process->process_file)) 
+      //&& !page->writable)
     page_table_add(page, sup);  
 }
 
@@ -217,6 +221,7 @@ page_table_copy (struct sup_table* source, struct sup_table* dest)
           page_copy (list_elem_to_hash_elem (elem), (void*)dest);
         }
     }
+  debug_page_table(dest);
 }
 
 /* Debug functions */
@@ -226,9 +231,10 @@ print_page (struct hash_elem* e, void* aux UNUSED)
 {
   struct page* page = hash_entry(e, struct page, elem);
   
-  printf("Page addr = %X\t",page->upage);
-  printf("Page loaded = %d\n", page->loaded);
-  printf("Page writable = %d\n", page->writable);
+  printf("Page addr = %p\t",page->upage);
+  printf("Page loaded = %d\t", page->loaded);
+  printf("Page writable = %d\t", page->writable);
+  printf("Page struct addr = %p\n", page);
 }
 
 
