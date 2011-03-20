@@ -33,7 +33,7 @@ struct arg_elem
 {
   char* argument;         /* Argument */
   int length;             /* Length of argument (including \0) */
-  char* location;         /* Location on stack */
+  uint8_t* location;         /* Location on stack */
   struct list_elem elem;  /* list_elem */
 };
 

@@ -1,57 +1,58 @@
 #include "vm/page.h"
-#include "userprog/process.h"
-#include <hash.h>
-#include "threads/malloc.h"
-#include "threads/vaddr.h"
 #include "vm/frame.h"
 #include "vm/swap.h"
+#include "userprog/process.h"
+#include <hash.h>
+#include <string.h>
+#include "threads/malloc.h"
+#include "threads/vaddr.h"
+#include "filesys/filesys.h"
+#include "filesys/file.h"
+
+
 
 //TODO: Remove
 #include <stdio.h>
+#include "userprog/pagedir.h"
+
+//TODO: Finish synchronisation
 
 static bool page_less (const struct hash_elem* p1, const struct hash_elem* p2, void* aux);
 static unsigned page_hash (const struct hash_elem* elem, void* aux);
 static void page_destroy (struct hash_elem* e, void* aux);
 static void page_copy (struct hash_elem* e, void* sup_table);
-
-
 static void print_page (struct hash_elem* e, void* aux UNUSED);
 
+/* Mutually exclusive access to frame/swap management 
+   and supplementary page table access */
+static struct lock vm_lock;
 
 
 bool
 page_table_init (struct sup_table* sup) 
 {
-  bool success;
-  success = hash_init(&sup->page_table, page_hash, page_less, NULL);
-  return success;
+  lock_init(&vm_lock);
+  return hash_init(&sup->page_table, page_hash, page_less, NULL);
 }
 
 
 bool
 page_table_add (struct page* p, struct sup_table* table)
 {
-  bool success;
-  success = false;
-      
-  if (hash_insert (&table->page_table, &p->elem) == NULL)
-    success = true;
-  
-  return success;
+  return(hash_insert (&table->page_table, &p->elem) == NULL);
 }
 
 
 bool
 page_table_remove (struct page* p, struct sup_table* table)
 {
-  bool success;
-  success = false;
   if (hash_delete (&table->page_table, &p->elem) != NULL)
-    success = true;
-  if (success)
+  {
     free(p);
-  
-  return success;
+    return true;
+  }
+  else
+    return false;
 }
 
 bool
@@ -65,42 +66,22 @@ page_table_find (struct page* p, struct sup_table* table)
 {
   struct hash_elem* elem;
   elem = hash_find (&table->page_table, &p->elem);
-    
-  return (hash_entry (elem, struct page, elem));
-}
 
-struct page*
-add_page (uint8_t* upage, bool writable)
-{
-  struct page* page;
-  
-  page = malloc(sizeof(struct page));
-  
-  page->upage = upage;
-  page->writable = writable;
-  page->owner = thread_current();
-  
-  page_table_add(page, thread_current()->process->sup_table);  
-  
-  return page;
+  return (hash_entry (elem, struct page, elem));
 }
 
 struct page*
 page_find (uint8_t* upage, struct sup_table* sup)
 {
   struct page page;
-  struct page* return_value;
   struct hash_elem* value;
-    
-  page.upage = upage;
-  
-  value = hash_find(&sup->page_table, &page.elem);
-  if (value == 0)
-    return NULL;
-  
-  return_value = hash_entry(value, struct page, elem);
 
-  return return_value;
+  page.upage = upage;
+
+  if (!hash_find(&sup->page_table, &page.elem))
+    return NULL;
+
+  return hash_entry(value, struct page, elem);
 }
 
 uint32_t*
@@ -260,7 +241,7 @@ debug_page_table (struct sup_table* sup)
 void
 page_free(struct page* sup_page)
 {
-  //ASSERT(sup_page->owner == thread_current());
+  ASSERT(sup_page->owner == thread_current());
   
   if(sup_page->loaded)
   {
@@ -273,4 +254,127 @@ page_free(struct page* sup_page)
       swap_free(sup_page);
     }
   }
+}
+
+
+/* Loads a single page starting at offset OFS in FILE at address
+UPAGE. A page of virtual memory is initialized, as follows:
+
+- READ_BYTES bytes at UPAGE must be read from FILE
+starting at offset OFS.
+
+- ZERO_BYTES bytes at UPAGE + READ_BYTES must be zeroed.
+
+The page initialized by this function must be writable by the
+user process if WRITABLE is true, read-only otherwise.
+
+Return true if successful, false if a memory allocation error
+or disk read error occurs. */
+void
+load_page (struct page* p)
+{
+  struct file* file;
+  struct thread* t;
+  bool old_writable;
+  
+  printf("page_load: %u, %u\n", p->read_bytes, p->zero_bytes);
+  
+  ASSERT ((p->read_bytes + p->zero_bytes) % PGSIZE == 0);
+  ASSERT (pg_ofs (p->upage) == 0);
+  ASSERT (p->ofs % PGSIZE == 0);
+  
+  file = p->file;
+  
+  lock_acquire(&filesys_lock);
+  file_seek (file, p->ofs);
+  lock_release(&filesys_lock);
+  
+  t = thread_current();
+  
+  /* Temporarily set writable to true (so we can actually load the page) */
+  old_writable = p->writable;
+  if(!old_writable)
+    p->writable = true;
+  
+  /* Get a page of memory. */
+  void* kpage = frame_get(PAL_USER, p);
+  
+  /* Load this page. */
+  lock_acquire(&filesys_lock);
+  if (file_read (file, p->upage, p->read_bytes) != (int) p->read_bytes)
+  {
+    page_free(p);
+    lock_release(&filesys_lock);
+    PANIC("Load page failed - file could not be found");
+  }
+  lock_release(&filesys_lock);
+  memset (p->upage + p->read_bytes, 0, p->zero_bytes);
+  
+  /* Restore old "false" writable flag if necessary */
+  if(!old_writable)
+  {
+    p->writable = false;
+    pagedir_clear_page(t->pagedir, p->upage);
+    pagedir_set_page(t->pagedir, p->upage, kpage, false);
+  }
+
+  p->loaded = true;
+  
+  /* Clear dirty bit */
+  pagedir_set_accessed(t->pagedir, p->upage, false);
+}
+
+
+/* Creates a supplemental page and adds it to the sup page table, but 
+   does not allocate any physical memory */
+struct page*
+page_create (uint8_t* upage, bool writable)
+{
+  struct page* sup_page;
+  
+  sup_page = malloc(sizeof(struct page));
+  
+  sup_page->upage = upage;
+  sup_page->writable = writable;
+  sup_page->owner = thread_current();
+  sup_page->swap_idx = NOT_YET_SWAPPED;
+  sup_page->loaded = false;
+  sup_page->valid = false;
+  sup_page->read_bytes = 0;
+  sup_page->zero_bytes = 0;
+  sup_page->ofs = 0;
+  
+  page_table_add(sup_page, thread_current()->process->sup_table);  
+  
+  return sup_page;
+}
+
+
+struct page*
+page_allocate(void* upage, enum palloc_flags flags, bool writable)
+{
+  struct page* sup_page;
+  
+  lock_acquire(&vm_lock);
+
+  sup_page = page_create(upage, writable);
+  
+  /* frame_get() installs the page into the page directory
+      and sets the valid flag for us */
+  frame_get(PAL_USER | flags, sup_page);
+  
+  /* Add to supplementary page table */
+  page_table_add(sup_page, thread_current()->process->sup_table);
+  
+  lock_release(&vm_lock);
+    
+  return sup_page;
+}
+
+void
+page_swap_in(struct page* sup_page)
+{
+  lock_acquire(&vm_lock);
+  swap_in(sup_page);
+  lock_release(&vm_lock);
 }

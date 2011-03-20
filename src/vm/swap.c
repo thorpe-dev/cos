@@ -1,21 +1,24 @@
 #include "vm/swap.h"
+#include "vm/frame.h"
 #include "devices/block.h"
 #include "threads/vaddr.h"
 #include <bitmap.h>
 #include "threads/synch.h"
 #include "userprog/pagedir.h"
 #include "threads/thread.h"
+<<<<<<< HEAD
 #include "vm/frame.h"
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 
+=======
+>>>>>>> 79a81ccc6a0df895c86849fd6b3a25f54f370123
 
 //TODO: Remove (debug)
 #include <stdio.h>
 
 static struct block* swap_area;
 static struct bitmap* swap_state;
-static struct lock lock;
 
 static void write_out(block_sector_t sec, void* data);
 static block_sector_t idx_to_sec(unsigned int swap_index);
@@ -26,8 +29,6 @@ swap_init(void)
   swap_area = block_get_role(BLOCK_SWAP);
 
   swap_state = bitmap_create((block_size(swap_area) * BLOCK_SECTOR_SIZE) / PGSIZE);
-  
-  lock_init(&lock);
 }
 
 
@@ -38,9 +39,14 @@ void
 swap_out(struct page* sup_page)
 {
   unsigned int swap_page_idx;
-
-  lock_acquire(&lock);
   
+  /* No lock required since swap_out() is only called from frame_get(),
+     which already holds the lock. */
+
+  ASSERT(sup_page->valid);
+  /* It means nothing for a page to be loaded if it has no file */
+  ASSERT(sup_page->file || !sup_page->loaded);
+
   /* No swap yet allocated - has not been swapped out before */
   if(sup_page->swap_idx == NOT_YET_SWAPPED)
   {
@@ -81,51 +87,35 @@ swap_out(struct page* sup_page)
   }
   
   frame_free(sup_page);
-  
-  lock_release(&lock);
 }
 
+/* Called from exception handler to bring a page in from swap */
 void
 swap_in(struct page* sup_page)
 {
   block_sector_t sec;
-  uint32_t swap_idx;
   void* kpage;
   void* data;
   unsigned int i;
   
-  //ASSERT(sup_page->owner == thread_current());
   ASSERT(!sup_page->valid);
 
-  swap_idx = sup_page->swap_idx;
-  /* Set kpage to location of some free PGSIZE area in RAM */
   kpage = frame_get(PAL_USER, sup_page);
-  // frame_get clobbers sup_page->swap_idx - we must preserve it
-  sup_page->swap_idx = swap_idx;
 
-  lock_acquire(&lock);
-  
-  install_page(sup_page->upage, kpage, sup_page->writable);
-   
-  sec = idx_to_sec(swap_idx);
+  sec = idx_to_sec(sup_page->swap_idx);
   data = sup_page->upage;  
   for(i=0;i < PGSIZE/BLOCK_SECTOR_SIZE;i++) {
     block_read(swap_area, sec+i, data+i*BLOCK_SECTOR_SIZE);
   }
   
-  lock_release(&lock);
 }
 
+/* Called from page_free to free a page which is in swap */
 void
 swap_free(struct page* sup_page)
 {
-  lock_acquire(&lock);
-  ASSERT(sup_page->loaded);
   ASSERT(!sup_page->valid);
-  
   bitmap_flip(swap_state, sup_page->swap_idx);
-  
-  lock_release(&lock);
 }
 
 /* Writes one page from DATA, starting at sector SEC */

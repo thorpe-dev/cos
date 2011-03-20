@@ -541,39 +541,28 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
   struct page* page;
   struct process* process = thread_current()->process;
-  struct sup_table* sup_table = process->sup_table;
   
   while (read_bytes > 0 || zero_bytes > 0) 
     {
-
       /* Calculate how to fill this page.
       We will read PAGE_READ_BYTES bytes from FILE
       and zero the final PAGE_ZERO_BYTES bytes. */
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
-
-      /*Allocate memory for the page struct and initialise it*/
-      page = malloc(sizeof(struct page));
-      page->upage = upage;
+      
+      page = page_create(upage, writable);
       page->ofs = ofs;
       page->read_bytes = page_read_bytes;
       page->zero_bytes = page_zero_bytes;
-      page->writable = writable;
-      page->loaded = false;
-      page->swap_idx = NOT_YET_SWAPPED;
-      page->valid = false;
-      page->owner = thread_current();
       page->file = file;
-      /****************************/
-
-      /*Add this page to the page table */
-      page_table_add(page,sup_table);
 
       /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
       ofs += PGSIZE;
+      
+      printf("load_segment: %u, %u\n", read_bytes, zero_bytes);
     }
     
     process->heap_top = upage;
@@ -581,165 +570,96 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   return true;
 }
 
-/* Loads a single page starting at offset OFS in FILE at address
-   UPAGE. A page of virtual memory is initialized, as follows:
-
-        - READ_BYTES bytes at UPAGE must be read from FILE
-          starting at offset OFS.
-
-        - ZERO_BYTES bytes at UPAGE + READ_BYTES must be zeroed.
-
-   The page initialized by this function must be writable by the
-   user process if WRITABLE is true, read-only otherwise.
-
-   Return true if successful, false if a memory allocation error
-   or disk read error occurs. */
-void
-load_page (struct page* p)
-{
-  ASSERT ((p->read_bytes + p->zero_bytes) % PGSIZE == 0);
-  ASSERT (pg_ofs (p->upage) == 0);
-  ASSERT (p->ofs % PGSIZE == 0);
-  
-  struct file* file;
-  
-  file = p->file;
-  
-  lock_acquire(&filesys_lock);
-  file_seek (file, p->ofs);
-  lock_release(&filesys_lock);  
-
-  /* Get a page of memory. */  
-  uint8_t *kpage = frame_get(PAL_USER, p);
-  if (kpage == NULL)
-    PANIC("Load page failed - couldn't get a page");
-
-  /* Load this page. */
-  lock_acquire(&filesys_lock);
-  if (file_read (file, kpage, p->read_bytes) != (int) p->read_bytes)
-  {
-    page_free(p);
-    lock_release(&filesys_lock);
-    PANIC("Load page failed - file could not be found");
-  }
-  lock_release(&filesys_lock);
-  memset (kpage + p->read_bytes, 0, p->zero_bytes);
-
-  /* Add the page to the process's address space. */
-  if (!install_page (p->upage, kpage, p->writable)) 
-  {
-    page_free(p);
-    PANIC("Load page failed - install page failed"); 
-  }
-  
-  p->loaded = p->valid = true;
-}
-
-
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
 setup_stack (void **esp, char *command) 
 {
-  uint8_t *kpage;
-  bool success = false;
-
   struct list arguments;
   struct list_elem* e = NULL;
   struct arg_elem* this_arg = NULL;
   char* save_ptr, * token = NULL;
-  uint8_t* ptr, * base = NULL;
+  uint8_t* ptr= NULL;
   int pointer_size = sizeof(void*);
   int num_args = 0;
   struct page* page;
 
   list_init(&arguments);
   
-  page = add_page(STACK_BASE, true);
-  kpage = frame_get(PAL_USER | PAL_ZERO, page);
-  if (kpage != NULL) 
-    {
-      success = install_page (STACK_BASE, kpage, true);
-      if (success){
-        page->loaded = page->valid = true;
-        page->read_bytes = PGSIZE;
+  page = page_allocate(STACK_BASE, PAL_ZERO, true);
+  page->read_bytes = PGSIZE;
 
-        ptr = base = (uint8_t*)kpage + PGSIZE;
+  ptr = PHYS_BASE;
 
-        /* Add argument values and lengths to a list */
-        for (token = strtok_r (command, " ", &save_ptr); token != NULL;
-             token = strtok_r (NULL, " ", &save_ptr))
-        {
-          this_arg = malloc(sizeof(struct arg_elem));
-          if(this_arg == NULL) {
-            page_free(page);
-            return false;
-          }
-          this_arg->length = strlen(token)+1;
-          this_arg->argument = malloc(this_arg->length);
-          if(this_arg->argument == NULL) {
-            page_free(page);
-            free(this_arg);
-            return false;
-          }
-
-          strlcpy(this_arg->argument, token, this_arg->length);
-
-          /* Push arguments onto stack and copy their address 
-          to their list_elem */
-          ptr -= this_arg->length;
-          this_arg->location = PHYS_BASE-(base-ptr);
-          strlcpy((char*)ptr, this_arg->argument, this_arg->length);
-
-          list_push_front(&arguments, &this_arg->elem);
-          num_args++;
-        }
-
-        /* Word Align
-        We NAND the pointer with 0b11, setting the two least-significant bits 
-        to 0. This effectively rounds down to the nearest 4 bytes. */
-        ptr = (uint8_t*)((int)ptr & ~0b11);
-
-        ptr -= pointer_size;
-        *ptr = 0;
-
-        /* Pushes argument address (string pointers) onto stack */
-        e = list_begin(&arguments);
-        while(e != list_end(&arguments))
-        {
-          this_arg = list_entry(e, struct arg_elem, elem);
-          ptr -= pointer_size;
-          *(uint32_t*)ptr = (uint32_t)this_arg->location;
-          e = list_next(e);
-          free(this_arg->argument);
-          free(this_arg);
-        }
-
-        /* Pushes pointer to first string pointer */
-        ptr -= pointer_size;
-        *(uint32_t*)ptr = (uint32_t)(PHYS_BASE-(base-ptr) + pointer_size);
-
-        /* Pushes number of arguments */
-        ptr -= sizeof(uint32_t);
-        *(uint32_t*)ptr = num_args;
-
-        /* Pushes fake return address */
-        ptr -= pointer_size;
-        *(uint32_t*)ptr = 0;
-
-        *esp = PHYS_BASE - (base - ptr);
-        
-        /*  Adds a page for the the very bottom of the stack - 
-            ensures the stack can grow to max size and we don't enter the stack
-            when doing memory mapping */
-        page = add_page (MAX_STACK_ADDRESS, true);
-        page->loaded = page->valid = false;
-      }
-      
-      else
-        page_free(page);
+  /* Add argument values and lengths to a list */
+  for (token = strtok_r (command, " ", &save_ptr); token != NULL;
+        token = strtok_r (NULL, " ", &save_ptr))
+  {
+    this_arg = malloc(sizeof(struct arg_elem));
+    if(this_arg == NULL) {
+      page_free(page);
+      return false;
     }
-  return success;
+    this_arg->length = strlen(token)+1;
+    this_arg->argument = malloc(this_arg->length);
+    if(this_arg->argument == NULL) {
+      page_free(page);
+      free(this_arg);
+      return false;
+    }
+
+    strlcpy(this_arg->argument, token, this_arg->length);
+
+    /* Push arguments onto stack and copy their address 
+    to their list_elem */
+    ptr -= this_arg->length;
+    this_arg->location = ptr;
+    strlcpy((char*)ptr, this_arg->argument, this_arg->length);
+
+    list_push_front(&arguments, &this_arg->elem);
+    num_args++;
+  }
+
+  /* Word Align
+  We NAND the pointer with 0b11, setting the two least-significant bits 
+  to 0. This effectively rounds down to the nearest 4 bytes. */
+  ptr = (uint8_t*)((int)ptr & ~0b11);
+
+  ptr -= pointer_size;
+  *ptr = 0;
+
+  /* Pushes argument address (string pointers) onto stack */
+  e = list_begin(&arguments);
+  while(e != list_end(&arguments))
+  {
+    this_arg = list_entry(e, struct arg_elem, elem);
+    ptr -= pointer_size;
+    *(uint32_t*)ptr = (uint32_t)this_arg->location;
+    e = list_next(e);
+    free(this_arg->argument);
+    free(this_arg);
+  }
+
+  /* Pushes pointer to first string pointer */
+  ptr -= pointer_size;
+  *(uint32_t*)ptr = (uint32_t)ptr + pointer_size;
+
+  /* Pushes number of arguments */
+  ptr -= sizeof(uint32_t);
+  *(uint32_t*)ptr = num_args;
+
+  /* Pushes fake return address */
+  ptr -= pointer_size;
+  *(uint32_t*)ptr = 0;
+
+  *esp = ptr;
+
+  /*  Adds a page for the the very bottom of the stack - 
+      ensures the stack can grow to max size and we don't enter the stack
+      when doing memory mapping */
+  page_create(MAX_STACK_ADDRESS, true);
+
+  return true;
 }
 
 /* Adds a mapping from user virtual address UPAGE to kernel
