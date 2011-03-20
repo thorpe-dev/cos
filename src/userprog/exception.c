@@ -175,6 +175,8 @@ page_fault (struct intr_frame *f)
   upage = (uint8_t*)(lower_page_bound (fault_addr));
   
   //printf("Fault addr = %p\n", fault_addr);
+  //debug_page_table(sup);
+
   
   /* Get the stack pointer */
   stack_pointer = f->esp;
@@ -189,7 +191,7 @@ page_fault (struct intr_frame *f)
   /* Find page in page table */
   page = page_find (upage, sup);
     
-  /* If the page was found, but isn't - has been swapped out */
+  /* If the page was found - check for read on write page-fault */
   if (page != NULL) 
   {
     /* If page access was write and page is marked read only - kill the process */
@@ -200,10 +202,10 @@ page_fault (struct intr_frame *f)
     }
   }
   
+  
   if (not_present) {
-   
-    if (page != NULL) {    
-    /* If the page hasn't been loaded - is exectuable/mmaped file - load_page from disk */
+    if (page != NULL) {
+    /* If the page hasn't been loaded - is executable/mmaped file - load_page from disk */
       if (!page->loaded) 
       {
         load_page(page);
@@ -215,10 +217,10 @@ page_fault (struct intr_frame *f)
         page_swap_in(page);
       }
     }
+    
       
-    else if ((int)stack_pointer - (int)fault_addr <= 32) 
+    else if ((uint32_t)stack_pointer - (uint32_t)fault_addr <= 32) 
     {
-      
       /* If the address will grow the stack beyond the max size, kill the process */
       if (fault_addr < MAX_STACK_ADDRESS) {
         //printf("Stack has grown too large\n");
@@ -236,6 +238,7 @@ page_fault (struct intr_frame *f)
       page_fault_error(f, fault_addr, not_present, write, user);
     }
   }
+  //debug_page_table(sup);
 }
 
 static void

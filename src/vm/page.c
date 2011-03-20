@@ -75,10 +75,11 @@ page_find (uint8_t* upage, struct sup_table* sup)
 {
   struct page page;
   struct hash_elem* value;
-
+  
   page.upage = upage;
-
-  if (!hash_find(&sup->page_table, &page.elem))
+  
+  value = hash_find(&sup->page_table, &page.elem);
+  if (value == 0)
     return NULL;
 
   return hash_entry(value, struct page, elem);
@@ -129,8 +130,8 @@ load_buffer_pages(const void* buffer, unsigned int size)
       if (!p->valid)
         load_page (p);
     }
-    else {
-      p = add_page (addr, true);}
+    else
+      p = page_create (addr, true);
   }
   
   /* If buffer is right at a page boundary, might miss a page to be loaded - check that it is loaded  */
@@ -142,12 +143,10 @@ load_buffer_pages(const void* buffer, unsigned int size)
       if (!p->valid)
         load_page (p);
     }
-    else {
-      p = add_page(addr,true); }
+    else
+      p = page_create (addr,true);
   }
-  
-  debug_page_table(sup);
-  
+    
 }
 
 
@@ -214,7 +213,6 @@ page_table_copy (struct sup_table* source, struct sup_table* dest)
           page_copy (list_elem_to_hash_elem (elem), (void*)dest);
         }
     }
-  debug_page_table(dest);
 }
 
 /* Debug functions */
@@ -225,6 +223,7 @@ print_page (struct hash_elem* e, void* aux UNUSED)
   struct page* page = hash_entry(e, struct page, elem);
   
   printf("Page addr = %p\t",page->upage);
+  printf("Page valid = %d\t", page->valid);
   printf("Page loaded = %d\t", page->loaded);
   printf("Page writable = %d\t", page->writable);
   printf("Page struct addr = %p\n", page);
@@ -277,7 +276,6 @@ load_page (struct page* p)
   struct thread* t;
   bool old_writable;
   
-  printf("page_load: %u, %u\n", p->read_bytes, p->zero_bytes);
   
   ASSERT ((p->read_bytes + p->zero_bytes) % PGSIZE == 0);
   ASSERT (pg_ofs (p->upage) == 0);

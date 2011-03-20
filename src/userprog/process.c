@@ -561,8 +561,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
       ofs += PGSIZE;
-      
-      printf("load_segment: %u, %u\n", read_bytes, zero_bytes);
     }
     
     process->heap_top = upage;

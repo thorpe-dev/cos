@@ -6,7 +6,6 @@
 #include "threads/synch.h"
 #include "userprog/pagedir.h"
 #include "threads/thread.h"
-#include "vm/frame.h"
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 
