@@ -1,11 +1,11 @@
 #include "vm/swap.h"
+#include "vm/frame.h"
 #include "devices/block.h"
 #include "threads/vaddr.h"
 #include <bitmap.h>
 #include "threads/synch.h"
 #include "userprog/pagedir.h"
 #include "threads/thread.h"
-#include "vm/frame.h"
 
 //TODO: Remove (debug)
 #include <stdio.h>
@@ -37,6 +37,8 @@ swap_out(struct page* sup_page)
      which already holds the lock. */
 
   ASSERT(sup_page->valid);
+  /* It means nothing for a page to be loaded if it has no file */
+  ASSERT(sup_page->file || !sup_page->loaded);
 
   /* No swap yet allocated - has not been swapped out before */
   if(sup_page->swap_idx == NOT_YET_SWAPPED)
@@ -71,42 +73,28 @@ void
 swap_in(struct page* sup_page)
 {
   block_sector_t sec;
-  uint32_t swap_idx;
   void* kpage;
   void* data;
   unsigned int i;
   
-  lock_acquire(&mem_lock);
-  
   ASSERT(!sup_page->valid);
 
-  swap_idx = sup_page->swap_idx;
-  /* Set kpage to location of some free PGSIZE area in RAM */
   kpage = frame_get(PAL_USER, sup_page);
-  // frame_get clobbers sup_page->swap_idx - we must preserve it
-  sup_page->swap_idx = swap_idx;
-  
-  install_page(sup_page->upage, kpage, sup_page->writable);
-   
-  sec = idx_to_sec(swap_idx);
+
+  sec = idx_to_sec(sup_page->swap_idx);
   data = sup_page->upage;  
   for(i=0;i < PGSIZE/BLOCK_SECTOR_SIZE;i++) {
     block_read(swap_area, sec+i, data+i*BLOCK_SECTOR_SIZE);
   }
   
-  lock_release(&mem_lock);
 }
 
 /* Called from page_free to free a page which is in swap */
 void
 swap_free(struct page* sup_page)
 {
-  lock_acquire(&mem_lock);
-
   ASSERT(!sup_page->valid);
   bitmap_flip(swap_state, sup_page->swap_idx);
-
-  lock_release(&mem_lock);
 }
 
 /* Writes one page from DATA, starting at sector SEC */

@@ -137,7 +137,6 @@ page_fault (struct intr_frame *f)
   
   void* stack_pointer; /* Stack pointer */
   uint8_t* upage;
-  uint8_t* kpage;
   struct page* page;
   struct sup_table* sup;  /* Page table */
   
@@ -215,7 +214,7 @@ page_fault (struct intr_frame *f)
       /* Otherwise page has been swapped out - load from swap */
       else 
       {
-        swap_in(page);
+        page_swap_in(page);
       }
     }
       
@@ -227,22 +226,10 @@ page_fault (struct intr_frame *f)
         //printf("Stack has grown too large\n");
         page_fault_error (f, fault_addr, not_present, write, user);
       }
-      page = malloc(sizeof(struct page));
-      page->upage = upage;
-      /* Get a user page */
-      kpage = frame_get(PAL_USER, page);
-            
-      /* Try to grow stack - if you can't grow it, kill the process */
-      if (kpage == NULL || !install_page(upage, kpage, true)) {
-        //printf("Stack couldn't be grown\n");
-        page_fault_error(f, fault_addr, not_present, write, user);
-      }
-      page->file = NULL;
       
-      /* Add the new page to the page table */
-      page_table_add(page, sup);
-      page->loaded = page->valid = page->writable = true;
-      page->owner = thread_current();
+      /* Grow stack */
+      page = page_allocate(upage, PAL_USER, true);
+      page->file = NULL;
     }
       
     /* Else trying to access memory process isn't supposed to, kill the process */

@@ -1,8 +1,8 @@
 #include "frame.h"
+#include "vm/swap.h"
 #include "threads/malloc.h"
 #include "threads/vaddr.h"
 #include "threads/thread.h"
-#include "vm/swap.h"
 #include "userprog/pagedir.h"
 
 //TODO: remove (debug)
@@ -17,10 +17,8 @@ static void frame_del(unsigned int frame_index);
 void
 frame_init(int _count)
 {
-  lock_init(&mem_lock);
   count = _count;
   table = malloc(sizeof(void*) * count);
-  
 }
 
 static void
@@ -29,7 +27,6 @@ frame_add(unsigned int frame_index, struct page* sup_page)
   ASSERT(table[frame_index] == NULL);
   table[frame_index] = malloc(sizeof(struct frame));
   table[frame_index]->sup_page = sup_page;
-  sup_page->valid = true;
 }
 
 static void
@@ -52,7 +49,7 @@ frame_get(enum palloc_flags flags, struct page* sup_page)
   unsigned int i;
   bool accessed, dirty;
   
-  lock_acquire(&mem_lock);
+  ASSERT(sup_page->upage != NULL);
 
   kpage = palloc_get_page(PAL_USER | flags);
 
@@ -93,9 +90,12 @@ frame_get(enum palloc_flags flags, struct page* sup_page)
   }
   
   frame_add(page_to_frame_idx(kpage), sup_page);
-  sup_page->swap_idx = NOT_YET_SWAPPED;
   
-  lock_release(&mem_lock);
+  /* Add to page directory */
+  ASSERT(install_page(sup_page->upage, kpage, sup_page->writable));
+  
+  /* Set supplementary page "in physical memory" flag */
+  sup_page->valid = true;
   
   return kpage;
 }
@@ -113,8 +113,6 @@ frame_free(struct page* sup_page)
 {
   void* kpage;
   
-  lock_acquire(&mem_lock);
-  
   ASSERT(sup_page->valid);
   
   sup_page->valid = false;
@@ -122,6 +120,4 @@ frame_free(struct page* sup_page)
   pagedir_clear_page(sup_page->owner->pagedir, sup_page->upage);
   palloc_free_page(kpage);
   frame_del(page_to_frame_idx(kpage));
-  
-  lock_release(&mem_lock);
 }
