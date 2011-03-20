@@ -9,7 +9,6 @@
 #include <stdio.h>
 
 static struct frame** table;
-static struct lock lock;
 static unsigned int count;
 
 static void frame_add(unsigned int frame_index, struct page* sup_page);
@@ -18,7 +17,7 @@ static void frame_del(unsigned int frame_index);
 void
 frame_init(int _count)
 {
-  lock_init(&lock);
+  lock_init(&mem_lock);
   count = _count;
   table = malloc(sizeof(void*) * count);
   
@@ -53,7 +52,7 @@ frame_get(enum palloc_flags flags, struct page* sup_page)
   unsigned int i;
   bool accessed, dirty;
   
-  lock_acquire(&lock);
+  lock_acquire(&mem_lock);
 
   kpage = palloc_get_page(PAL_USER | flags);
 
@@ -84,9 +83,7 @@ frame_get(enum palloc_flags flags, struct page* sup_page)
       }
     }
     
-    lock_release(&lock);
     swap_out(best->sup_page);
-    lock_acquire(&lock);
     /* Swap out some page
     TODO: Search for least recently used clean page
     If no clean pages, then LRU dirty page */
@@ -98,7 +95,7 @@ frame_get(enum palloc_flags flags, struct page* sup_page)
   frame_add(page_to_frame_idx(kpage), sup_page);
   sup_page->swap_idx = NOT_YET_SWAPPED;
   
-  lock_release(&lock);
+  lock_release(&mem_lock);
   
   return kpage;
 }
@@ -110,12 +107,13 @@ frame_get_and_map(enum palloc_flags flags, struct page* sup_page)
   
 }*/
 
+/* Called from page_free to free a page which is in physical memory */
 void
 frame_free(struct page* sup_page)
 {
   void* kpage;
   
-  lock_acquire(&lock);
+  lock_acquire(&mem_lock);
   
   ASSERT(sup_page->valid);
   
@@ -125,5 +123,5 @@ frame_free(struct page* sup_page)
   palloc_free_page(kpage);
   frame_del(page_to_frame_idx(kpage));
   
-  lock_release(&lock);
+  lock_release(&mem_lock);
 }

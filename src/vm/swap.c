@@ -12,7 +12,6 @@
 
 static struct block* swap_area;
 static struct bitmap* swap_state;
-static struct lock lock;
 
 static void write_out(block_sector_t sec, void* data);
 static block_sector_t idx_to_sec(unsigned int swap_index);
@@ -23,8 +22,6 @@ swap_init(void)
   swap_area = block_get_role(BLOCK_SWAP);
 
   swap_state = bitmap_create((block_size(swap_area) * BLOCK_SECTOR_SIZE) / PGSIZE);
-  
-  lock_init(&lock);
 }
 
 
@@ -35,9 +32,12 @@ void
 swap_out(struct page* sup_page)
 {
   unsigned int swap_page_idx;
-
-  lock_acquire(&lock);
   
+  /* No lock required since swap_out() is only called from frame_get(),
+     which already holds the lock. */
+
+  ASSERT(sup_page->valid);
+
   /* No swap yet allocated - has not been swapped out before */
   if(sup_page->swap_idx == NOT_YET_SWAPPED)
   {
@@ -64,10 +64,9 @@ swap_out(struct page* sup_page)
   }
   
   frame_free(sup_page);
-  
-  lock_release(&lock);
 }
 
+/* Called from exception handler to bring a page in from swap */
 void
 swap_in(struct page* sup_page)
 {
@@ -77,7 +76,8 @@ swap_in(struct page* sup_page)
   void* data;
   unsigned int i;
   
-  //ASSERT(sup_page->owner == thread_current());
+  lock_acquire(&mem_lock);
+  
   ASSERT(!sup_page->valid);
 
   swap_idx = sup_page->swap_idx;
@@ -85,8 +85,6 @@ swap_in(struct page* sup_page)
   kpage = frame_get(PAL_USER, sup_page);
   // frame_get clobbers sup_page->swap_idx - we must preserve it
   sup_page->swap_idx = swap_idx;
-
-  lock_acquire(&lock);
   
   install_page(sup_page->upage, kpage, sup_page->writable);
    
@@ -96,18 +94,19 @@ swap_in(struct page* sup_page)
     block_read(swap_area, sec+i, data+i*BLOCK_SECTOR_SIZE);
   }
   
-  lock_release(&lock);
+  lock_release(&mem_lock);
 }
 
+/* Called from page_free to free a page which is in swap */
 void
 swap_free(struct page* sup_page)
 {
-  lock_acquire(&lock);
+  lock_acquire(&mem_lock);
+
   ASSERT(!sup_page->valid);
-  
   bitmap_flip(swap_state, sup_page->swap_idx);
-  
-  lock_release(&lock);
+
+  lock_release(&mem_lock);
 }
 
 /* Writes one page from DATA, starting at sector SEC */

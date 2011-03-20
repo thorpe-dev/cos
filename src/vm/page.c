@@ -226,7 +226,7 @@ print_page (struct hash_elem* e, void* aux UNUSED)
 {
   struct page* page = hash_entry(e, struct page, elem);
   
-  printf("Page addr = %X\t",page->upage);
+  printf("Page addr = %p\t",page->upage);
   printf("Page loaded = %d\n", page->loaded);
   printf("Page writable = %d\n", page->writable);
 }
@@ -242,7 +242,7 @@ debug_page_table (struct sup_table* sup)
 void
 page_free(struct page* sup_page)
 {
-  //ASSERT(sup_page->owner == thread_current());
+  ASSERT(sup_page->owner == thread_current());
   
   if(sup_page->loaded)
   {
