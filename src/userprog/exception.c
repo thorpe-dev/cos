@@ -176,8 +176,6 @@ page_fault (struct intr_frame *f)
   upage = (uint8_t*)(lower_page_bound (fault_addr));
   
   //printf("Fault addr = %p\n", fault_addr);
-  //debug_page_table(sup);
-
   
   /* Get the stack pointer */
   stack_pointer = f->esp;
@@ -219,8 +217,8 @@ page_fault (struct intr_frame *f)
       }
     }
       
-    else if (((int)stack_pointer - (int)fault_addr <= 32) 
-      || ((fault_addr > MAX_STACK_ADDRESS) && (fault_addr < PHYS_BASE) && !user)) {
+    else if ((int)stack_pointer - (int)fault_addr <= 32) 
+    {
       
       /* If the address will grow the stack beyond the max size, kill the process */
       if (fault_addr < MAX_STACK_ADDRESS) {

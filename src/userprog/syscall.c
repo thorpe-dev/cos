@@ -267,7 +267,6 @@ syscall_filesize(uint32_t* eax, int fd)
 static void 
 syscall_read(uint32_t* eax, int fd, void* buffer, unsigned int size)
 {
-  
   check_buffer_safety(buffer, size, true);
   
   load_buffer_pages(buffer, size);
@@ -442,8 +441,8 @@ syscall_mmap  (uint32_t* eax, int fd, const void* addr)
       lock_release (&filesys_lock);
     
     else
-    { 
-      /* Map file into memory here*/
+    {
+      /* Map file into page here - don't load pages into memory */
       read_bytes = file_length(file);
       zero_bytes = PGSIZE - (read_bytes % PGSIZE);
       if (load_segment (file, 0, (uint8_t*)addr, (uint32_t)read_bytes, zero_bytes, !file->deny_write))
@@ -484,6 +483,9 @@ syscall_munmap (mapid_t mapid)
   un_map_file (m, true);
 }
 
+/* Function for unmapping - bool kill_thread for when called in syscall_munmap 
+   and failure means killing thread - this function is also called in process 
+   exit which is called by thread_exit - if this bool was true could create an unwanted loop */
 void
 un_map_file (struct mmap_file* m, bool kill_thread)
 {
@@ -508,9 +510,10 @@ un_map_file (struct mmap_file* m, bool kill_thread)
       if (p->valid) {
         /* For the pages in memory, go through and see if they've been modified */
         if (pagedir_is_dirty (thread_current()->pagedir, (const void*)p->upage)) {
-          /* If the number of bytes written isn't the same as expect, kill the thread */
+          /* If the number of bytes written isn't the same as expected, kill the thread */
           lock_acquire(&filesys_lock);
-          if ((file_write_at(p->file, (const void*)(p->upage),(off_t)p->read_bytes,p->ofs) != (off_t)p->read_bytes) && kill_thread)
+          if ((file_write_at(p->file, (const void*)(p->upage),(off_t)p->read_bytes,p->ofs) != 
+            (off_t)p->read_bytes) && kill_thread)
           {
             lock_release(&filesys_lock);
             thread_exit();
@@ -521,8 +524,9 @@ un_map_file (struct mmap_file* m, bool kill_thread)
       }
       else {
         lock_acquire(&filesys_lock);
-        /* If the number of bytes written isn't the same as expect, kill the thread */
-        if ((file_write_at(file, (const void*)p->upage,p->read_bytes,p->ofs) != (off_t)p->read_bytes) && kill_thread) 
+        /* If the number of bytes written isn't the same as expected, kill the thread */
+        if ((file_write_at(file, (const void*)p->upage,p->read_bytes,p->ofs) != 
+          (off_t)p->read_bytes) && kill_thread)
         {
           lock_release(&filesys_lock);
           thread_exit();
@@ -669,9 +673,8 @@ check_pages (const void* addr, int size, struct sup_table* sup)
     return false;
   
   for (i = 0; i <= size / PGSIZE ; i++) {
-    if (page_find ((uint8_t*)addr + (i * PGSIZE), sup) != NULL) {
+    if (page_find ((uint8_t*)addr + (i * PGSIZE), sup) != NULL)
       return false;
-    }
   }
     
   return true;

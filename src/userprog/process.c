@@ -462,6 +462,8 @@ load (char* command, void (**eip) (void), void **esp)
   if (!setup_stack (esp, command))
     goto done;
   
+  
+  //debug_page_table(thread_current()->process->sup_table);
 
 
   /* Start address. */

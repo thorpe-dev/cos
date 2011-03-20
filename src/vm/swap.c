@@ -6,6 +6,9 @@
 #include "userprog/pagedir.h"
 #include "threads/thread.h"
 #include "vm/frame.h"
+#include "filesys/filesys.h"
+#include "filesys/file.h"
+
 
 //TODO: Remove (debug)
 #include <stdio.h>
@@ -43,11 +46,24 @@ swap_out(struct page* sup_page)
   {
     /* For a file loaded into RAM but not written to, we just pretend
        that it was never loaded */
-    if(sup_page->file != NULL && !pagedir_is_dirty(sup_page->owner->pagedir, sup_page->upage))
+    if (sup_page->file != NULL && !sup_page->writable)
+      sup_page->loaded = false;
+    
+    else if (sup_page->file != NULL && !pagedir_is_dirty(sup_page->owner->pagedir, sup_page->upage))
+      sup_page->loaded = false;
+    
+    /* If a file is memory mapped and has been edited - write back to filesys, not swap */
+    else if (     sup_page->file != NULL
+              &&  sup_page->file != sup_page->owner->process->process_file
+              &&  pagedir_is_dirty(sup_page->owner->pagedir, sup_page->upage))
     {
+      lock_acquire(&filesys_lock);
+      file_write_at(sup_page->file, (const void*)(sup_page->upage),(off_t)sup_page->read_bytes,sup_page->ofs);
+      lock_release(&filesys_lock);
       sup_page->loaded = false;
     }
-    
+    else 
+    {
     /* Scan for a single free page in swap block device */
     swap_page_idx = bitmap_scan_and_flip(swap_state, 0, 1, false);
     if(swap_page_idx == BITMAP_ERROR)
@@ -56,6 +72,7 @@ swap_out(struct page* sup_page)
     sup_page->swap_idx = swap_page_idx;
     
     write_out(idx_to_sec(swap_page_idx), sup_page->upage);
+    }
   }
   /* Has been swapped out before, but needs to be written back to disk */
   else if(pagedir_is_dirty(sup_page->owner->pagedir, sup_page->upage))

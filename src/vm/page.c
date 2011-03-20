@@ -136,24 +136,36 @@ load_buffer_pages(const void* buffer, unsigned int size)
   unsigned int i;
   uint8_t* addr;
   struct page* p;
+  struct sup_table* sup;
   uint8_t* round_buffer = lower_page_bound(buffer);
-   
+  sup = thread_current()->process->sup_table;
+     
   for(i = 0; i <= size / PGSIZE ; i++)
   {
     addr = round_buffer + (i*PGSIZE);
-    p = page_find (addr,thread_current()->process->sup_table);
-    if (p != NULL && !p->loaded)
-      load_page (p);
+    p = page_find (addr,sup);
+    if (p != NULL) {
+      if (!p->valid)
+        load_page (p);
+    }
+    else {
+      p = add_page (addr, true);}
   }
   
   /* If buffer is right at a page boundary, might miss a page to be loaded - check that it is loaded  */
   if(addr != lower_page_bound(buffer+size))
   {
     addr = (uint8_t*)lower_page_bound(buffer + size);
-    p = page_find (addr,thread_current()->process->sup_table);
-    if (p != NULL && !p->loaded)
-      load_page (p);
+    p = page_find (addr,sup);
+    if (p != NULL) {
+      if (!p->valid)
+        load_page (p);
+    }
+    else {
+      p = add_page(addr,true); }
   }
+  
+  debug_page_table(sup);
   
 }
 
