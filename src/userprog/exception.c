@@ -136,6 +136,7 @@ page_fault (struct intr_frame *f)
   bool write;         /* True: access was write, false: access was read. */
   bool user;          /* True: access by user, false: access by kernel. */
   void* fault_addr;   /* Fault address. */
+  int i;
   
   void* stack_pointer; /* Stack pointer */
   uint8_t* upage;
@@ -234,6 +235,13 @@ page_fault (struct intr_frame *f)
       page = page_allocate(upage, PAL_USER, true);
       //printf("page addr = %p\tupage addr = %p\n",page,page->upage);
       page->file = NULL;
+      for (i = 0; i < (PHYS_BASE - fault_addr) % PGSIZE; i++) {
+        page = page_find (upage + (i * PGSIZE), sup);
+        if (page == NULL) {
+          page = page_create (upage + (i * PGSIZE),true);
+          page->file = NULL;
+        }        
+      }
     }
       
     /* Else trying to access memory process isn't supposed to, kill the process */
