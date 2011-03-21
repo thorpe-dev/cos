@@ -295,19 +295,19 @@ syscall_read(uint32_t* eax, int fd, void* buffer, unsigned int size)
     /* Lock filesystem, read file, unlock */
     else 
     {
-      printf("buff = %p\n", buffer);
+      //printf("buff = %p\n", buffer);
       lock_acquire(&filesys_lock);
-      printf("file length = %d\n", file_length(file));
+      //printf("file length = %d\n", file_length(file));
       read_size = (int) file_read(file, buffer, size);
       lock_release(&filesys_lock);
-      printf("read size = %d\n", read_size);
+      //printf("read size = %d\n", read_size);
     
       syscall_return_int (eax, read_size);
     }
   }
-  putbuf((void*)0xbffff000,PGSIZE);
-  printf("\n");
-  debug_page_table(thread_current()->process->sup_table);
+  //putbuf((void*)0xbffff000,PGSIZE);
+  //printf("\n");
+  //debug_page_table(thread_current()->process->sup_table);
 }
 
 static void

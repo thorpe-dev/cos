@@ -103,7 +103,7 @@ void
 page_table_destroy(struct sup_table* sup)
 {
   hash_destroy(&sup->page_table, page_destroy);
-  free(sup);  
+  free(sup);
 }
 
 void*
@@ -172,10 +172,17 @@ page_hash (const struct hash_elem* elem, void* aux UNUSED)
 static void
 page_destroy (struct hash_elem* e, void* aux UNUSED)
 {
+  struct thread* t = thread_current();
   struct page* sup_page = hash_entry(e, struct page, elem);
-  /*  If the current process is not the page owner, 
-      means the page is still being shared - don't do anything */
-  if (sup_page->owner == thread_current()) {
+  /* If the current process is not the page owner, 
+     means the page is still being shared, so just remove
+     the entry from our own page directory */
+  
+  if (sup_page->owner != t) {
+    pagedir_clear_page(t->pagedir, sup_page->upage);
+  }
+  else
+  {
     page_free(sup_page);
     free(sup_page);
   }
@@ -241,17 +248,14 @@ void
 page_free(struct page* sup_page)
 {
   ASSERT(sup_page->owner == thread_current());
-  
-  if(sup_page->loaded)
+
+  if(sup_page->valid)
   {
-    if(sup_page->valid)
-    {
-      frame_free(sup_page);
-    }
-    else
-    {
-      swap_free(sup_page);
-    }
+    frame_free(sup_page);
+  }
+  else
+  {
+    swap_free(sup_page);
   }
 }
 

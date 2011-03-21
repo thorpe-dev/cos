@@ -17,15 +17,21 @@ static void frame_del(unsigned int frame_index);
 void
 frame_init(int _count)
 {
+  unsigned int i;
   count = _count;
   table = malloc(sizeof(void*) * count);
+  
+  /* Initialise (struct frame) pointers */
+  for(i=0;i<count;i++)
+  {
+    table[i] = NULL;
+  }
 }
 
 static void
 frame_add(unsigned int frame_index, struct page* sup_page)
 {
-  //TODO: why is this assert neccessary?
-  //ASSERT(table[frame_index] == NULL);
+  ASSERT(table[frame_index] == NULL);
   table[frame_index] = malloc(sizeof(struct frame));
   table[frame_index]->sup_page = sup_page;
 }
@@ -33,8 +39,7 @@ frame_add(unsigned int frame_index, struct page* sup_page)
 static void
 frame_del(unsigned int frame_index)
 {
-  //TODO: why is this assert neccessary?s
-  //ASSERT(table[frame_index] != NULL);
+  ASSERT(table[frame_index] != NULL);
   free(table[frame_index]);
   table[frame_index] = NULL;
 }
@@ -101,13 +106,6 @@ frame_get(enum palloc_flags flags, struct page* sup_page)
   
   return kpage;
 }
-
-//TODO: Finish
-/*void*
-frame_get_and_map(enum palloc_flags flags, struct page* sup_page)
-{
-  
-}*/
 
 /* Called from page_free to free a page which is in physical memory */
 void
