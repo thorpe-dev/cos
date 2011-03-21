@@ -63,6 +63,7 @@ syscall_handler (struct intr_frame *f)
 {
   
   void* esp = f->esp;
+  thread_current()->stack = (uint8_t*)esp;
   uint32_t* eax = &f->eax;
   unsigned int call_number = 0xDEADBEEF;
   
@@ -267,10 +268,12 @@ syscall_filesize(uint32_t* eax, int fd)
 static void 
 syscall_read(uint32_t* eax, int fd, void* buffer, unsigned int size)
 {
+  //printf("buffer = %p\n",lower_page_bound( buffer));
+  //debug_page_table(thread_current()->process->sup_table);
   check_buffer_safety(buffer, size, true);
-  
+  //debug_page_table(thread_current()->process->sup_table);
   load_buffer_pages(buffer, size);
-  
+  //debug_page_table(thread_current()->process->sup_table);
   struct file* file;
   int read_size = 0;
   
@@ -295,19 +298,20 @@ syscall_read(uint32_t* eax, int fd, void* buffer, unsigned int size)
     /* Lock filesystem, read file, unlock */
     else 
     {
-      printf("buff = %p\n", buffer);
+      //printf("buff = %p\n", buffer);
       lock_acquire(&filesys_lock);
-      printf("file length = %d\n", file_length(file));
-      read_size = (int) file_read(file, buffer, size);
+      //printf("file length = %d\n", file_length(file));
+      //printf("reading into buffer\n");
+      read_size = (int)file_read(file, buffer, size);
       lock_release(&filesys_lock);
-      printf("read size = %d\n", read_size);
+      //printf("read size = %d\n", read_size);
     
       syscall_return_int (eax, read_size);
     }
   }
-  putbuf((void*)0xbffff000,PGSIZE);
-  printf("\n");
-  debug_page_table(thread_current()->process->sup_table);
+  //putbuf((void*)0xbffff000,PGSIZE);
+  //printf("\n");
+  //debug_page_table(thread_current()->process->sup_table);
 }
 
 static void
@@ -499,7 +503,7 @@ un_map_file (struct mmap_file* m, bool kill_thread)
   unsigned int i;
   struct page* p;
   struct file* file;
-  int write_size = 0;
+  int write_size;
   
   sup = thread_current()->process->sup_table;
   
@@ -512,7 +516,6 @@ un_map_file (struct mmap_file* m, bool kill_thread)
       If its not in memory - it has been written to - write it back */
   for (i = 0; i <= m->file_size / PGSIZE ; i++) {
     p = page_find ((uint8_t*)m->addr + (i * PGSIZE), sup);
-    
     if (p != NULL && p->loaded) {
       if (p->valid) {
         /* For the pages in memory, go through and see if they've been modified */
@@ -520,14 +523,15 @@ un_map_file (struct mmap_file* m, bool kill_thread)
           /* If the number of bytes written isn't the same as expected, kill the thread */
           lock_acquire(&filesys_lock);
           write_size = (int)file_write_at(p->file, (const void*)(p->upage),(off_t)p->read_bytes,p->ofs);
-          
           if ((write_size !=  (off_t)p->read_bytes) && kill_thread)
           {
             lock_release(&filesys_lock);
             thread_exit();
           }
           lock_release(&filesys_lock);
+          
           page_table_remove (p, sup);
+          
         }
       }
     }

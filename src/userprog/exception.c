@@ -86,6 +86,8 @@ kill (struct intr_frame *f)
      the kernel.  Real Unix-like operating systems pass most
      exceptions back to the process via signals, but we don't
      implement them. */
+  //debug_page_table(thread_current()->process->sup_table);
+
      
   /* The interrupt frame's code segment value tells us where the
      exception originated. */
@@ -154,7 +156,6 @@ page_fault (struct intr_frame *f)
   intr_enable ();
   
   
-  
   /* Count page faults. */
   page_fault_cnt++;
 
@@ -165,17 +166,22 @@ page_fault (struct intr_frame *f)
   
   sup = thread_current()->process->sup_table;
   
-  /* If address is in kernel space or we got a kernel page fault, kill f */
-  if (!is_user_vaddr(fault_addr) && user) {
-    //printf("Address was either in kernel space or kernel page fault\n");
-    page_fault_error(f, fault_addr, not_present, write, user);
-  }
+  /* Get the stack pointer */
+  if (user)
+    stack_pointer = f->esp;
+  else
+    stack_pointer = thread_current()->stack;
   
   /* Get page base of fault addr */
   upage = (uint8_t*)(lower_page_bound (fault_addr));
   
-  /* Get the stack pointer */
-  stack_pointer = f->esp;
+  
+  
+  /* If address is in kernel space or we got a kernel page fault, kill f */
+  if (user && (!is_user_vaddr(fault_addr) || (stack_pointer < MAX_STACK_ADDRESS))) {
+    page_fault_error(f, fault_addr, not_present, write, user);
+  }
+    
   
   /* If the stack pointer is not safe, kill the process */
   if (!is_user_vaddr(stack_pointer) && user) 
@@ -200,6 +206,7 @@ page_fault (struct intr_frame *f)
   
   
   if (not_present) {
+    
     if (page != NULL) {
     /* If the page hasn't been loaded - is executable/mmaped file - load_page from disk */
       if (!page->loaded) 
@@ -225,6 +232,7 @@ page_fault (struct intr_frame *f)
       
       /* Grow stack */
       page = page_allocate(upage, PAL_USER, true);
+      //printf("page addr = %p\tupage addr = %p\n",page,page->upage);
       page->file = NULL;
     }
       
@@ -234,6 +242,10 @@ page_fault (struct intr_frame *f)
       page_fault_error(f, fault_addr, not_present, write, user);
     }
   }
+  //printf("f->esp = %p\n",f->esp);
+  //intr_dump_frame (f);
+  //debug_page_table(sup);
+
 }
 
 static void

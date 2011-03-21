@@ -5,6 +5,7 @@
 
 #include <string.h>
 #include <syscall.h>
+#include <stdio.h>
 #include "tests/vm/sample.inc"
 #include "tests/lib.h"
 #include "tests/main.h"
