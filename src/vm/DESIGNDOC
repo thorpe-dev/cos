@@ -271,7 +271,6 @@ struct process
   struct list mmaped_files;     /* List of memory mapped files */
 ...
   struct sup_table* sup_table;  /* Hash table of pages */
-  uint8_t* heap_top;            /* Location of the top of the heap */
 };
 
 

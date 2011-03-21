@@ -325,6 +325,7 @@ load_page (struct page* p)
   p->loaded = true;
   
   /* Clear dirty bit */
+  pagedir_set_dirty(t->pagedir, p->upage, false);
   pagedir_set_accessed(t->pagedir, p->upage, false);
 }
 
