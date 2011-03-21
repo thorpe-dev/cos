@@ -537,6 +537,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
   struct page* page;
   struct process* process = thread_current()->process;
+  off_t old_pos = file->pos;
   
   while (read_bytes > 0 || zero_bytes > 0) 
     {
@@ -559,8 +560,9 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       ofs += PGSIZE;
     }
     
-    process->heap_top = upage;
-    
+    /* Retain the file's old position offset */
+    file_seek(file, old_pos);
+
   return true;
 }
 

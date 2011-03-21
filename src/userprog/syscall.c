@@ -282,11 +282,10 @@ syscall_read(uint32_t* eax, int fd, void* buffer, unsigned int size)
       read_size++;
       buffer += sizeof(uint8_t);
     }
-    
   }
   /* Otherwise, read from file */
-  else {
-    
+  else
+  {
     file = find_file ( fd );
     
     /* If fd is incorrect, return -1 */
@@ -295,19 +294,12 @@ syscall_read(uint32_t* eax, int fd, void* buffer, unsigned int size)
     /* Lock filesystem, read file, unlock */
     else 
     {
-      //printf("buff = %p\n", buffer);
       lock_acquire(&filesys_lock);
-      //printf("file length = %d\n", file_length(file));
       read_size = (int) file_read(file, buffer, size);
-      lock_release(&filesys_lock);
-      //printf("read size = %d\n", read_size);
-    
+      lock_release(&filesys_lock);    
       syscall_return_int (eax, read_size);
     }
   }
-  //putbuf((void*)0xbffff000,PGSIZE);
-  //printf("\n");
-  //debug_page_table(thread_current()->process->sup_table);
 }
 
 static void
@@ -437,21 +429,14 @@ syscall_mmap  (uint32_t* eax, int fd, const void* addr)
     file = find_file (fd);
     lock_acquire (&filesys_lock);
 
-    if (file == NULL)
-      lock_release (&filesys_lock);
-    
-    else if (file_length (file) == 0)
-      lock_release (&filesys_lock);
-    
-    else if (!check_pages (addr, file_length (file), sup))
-      lock_release (&filesys_lock);
-    
-    else
+    if(   file != NULL 
+       && file_length(file) != 0 
+       && check_pages (addr, file_length (file), sup))
     {
       /* Map file into page here - don't load pages into memory */
       read_bytes = file_length(file);
       zero_bytes = PGSIZE - (read_bytes % PGSIZE);
-      if (load_segment (file, 0, (uint8_t*)addr, (uint32_t)read_bytes, zero_bytes, !file->deny_write))
+      if (load_segment(file, 0, (uint8_t*)addr, (uint32_t)read_bytes, zero_bytes, !file->deny_write))
       {
         mmap = malloc(sizeof(struct mmap_file));
         if (mmap != NULL)
@@ -466,10 +451,9 @@ syscall_mmap  (uint32_t* eax, int fd, const void* addr)
         }
       }
       file->mmaped = true;
-      lock_release(&filesys_lock);
     }
-  }   
-  
+    lock_release (&filesys_lock);
+  }
   
   syscall_return_mapid_t(eax, value);
 }
@@ -505,45 +489,49 @@ un_map_file (struct mmap_file* m, bool kill_thread)
   
   file = m->file;
 
-  
   /*  Go through pages for mapped file - if the page is null do nothing 
       If it hasn't been loaded - do nothing
       If its in memory, check dirty bit
-      If its not in memory - it has been written to - write it back */
-  for (i = 0; i <= m->file_size / PGSIZE ; i++) {
+      If its not in memory and it has been written to - write it back */
+  for (i = 0; i <= m->file_size / PGSIZE ; i++)
+  {
     p = page_find ((uint8_t*)m->addr + (i * PGSIZE), sup);
-    
-    if (p != NULL && p->loaded) {
-      if (p->valid) {
+    if(p == NULL)
+    {
+      if(kill_thread)
+        thread_exit();
+    }
+    else if (p->loaded)
+    {
+      if (p->valid)
+      {
         /* For the pages in memory, go through and see if they've been modified */
-        if (pagedir_is_dirty (thread_current()->pagedir, (const void*)p->upage)) {
+        if (pagedir_is_dirty (thread_current()->pagedir, (const void*)p->upage))
+        {
           /* If the number of bytes written isn't the same as expected, kill the thread */
           lock_acquire(&filesys_lock);
           write_size = (int)file_write_at(p->file, (const void*)(p->upage),(off_t)p->read_bytes,p->ofs);
-          
-          if ((write_size !=  (off_t)p->read_bytes) && kill_thread)
-          {
-            lock_release(&filesys_lock);
-            thread_exit();
-          }
           lock_release(&filesys_lock);
-          page_table_remove (p, sup);
+          
+          if ((write_size != (off_t)p->read_bytes) && kill_thread)
+            thread_exit();
         }
       }
     }
-    else if (p != NULL)
-        page_table_remove(p,sup);
+    
+    page_table_remove(p,sup);
   }
   
-  m->file->mmaped = false;  
+  file->mmaped = false;
   
   /* If the process has closed the file - actually close the file */
-  if (m->file->closed) {
+  if (m->file->closed)
+  {
     lock_acquire(&filesys_lock);
     file_close(m->file);
     lock_release(&filesys_lock);
-    
   }
+  
   list_remove(&m->elem);
   free(m);
 }

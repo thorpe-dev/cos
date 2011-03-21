@@ -27,8 +27,7 @@ test_main (void)
   munmap (map);
 
   /* Read back via read(). */
-  i = read (handle, buf, strlen (sample));
-  printf("i = %d\n", i);
+  read (handle, buf, strlen (sample));
   CHECK (!memcmp (buf, sample, strlen (sample)),
          "compare read data against written data");
   close (handle);

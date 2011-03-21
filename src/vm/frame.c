@@ -60,7 +60,8 @@ frame_get(enum palloc_flags flags, struct page* sup_page)
 
   kpage = palloc_get_page(PAL_USER | flags);
 
-  while(kpage == NULL)
+  /* Evict if necessary */
+  if(kpage == NULL)
   {
     for(i=0; i<count; i++)
     {
@@ -88,12 +89,10 @@ frame_get(enum palloc_flags flags, struct page* sup_page)
     }
     
     swap_out(best->sup_page);
-    /* Swap out some page
-    TODO: Search for least recently used clean page
-    If no clean pages, then LRU dirty page */
+    /* Swap out some page */
     
     /* Try again */
-    kpage = palloc_get_page(flags);
+    kpage = palloc_get_page(PAL_USER | flags);
   }
   
   frame_add(page_to_frame_idx(kpage), sup_page);

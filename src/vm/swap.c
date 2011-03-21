@@ -22,7 +22,6 @@ void
 swap_init(void)
 {
   swap_area = block_get_role(BLOCK_SWAP);
-
   swap_state = bitmap_create((block_size(swap_area) * BLOCK_SECTOR_SIZE) / PGSIZE);
 }
 

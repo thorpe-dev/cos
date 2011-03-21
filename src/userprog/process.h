@@ -60,7 +60,6 @@ struct process
   int next_fd;                      /* Used for generating file descriptors*/
   struct file* process_file;        /* The current process's executable */
   struct sup_table* sup_table;      /* Hash table of pages */
-  uint8_t* heap_top;                /* Location of the top of the heap */
 };
 
 

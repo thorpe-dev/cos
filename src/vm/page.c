@@ -48,6 +48,7 @@ page_table_remove (struct page* p, struct sup_table* table)
 {
   if (hash_delete (&table->page_table, &p->elem) != NULL)
   {
+    page_free(p);
     free(p);
     return true;
   }
@@ -280,16 +281,11 @@ load_page (struct page* p)
   struct thread* t;
   bool old_writable;
   
-  
   ASSERT ((p->read_bytes + p->zero_bytes) % PGSIZE == 0);
   ASSERT (pg_ofs (p->upage) == 0);
   ASSERT (p->ofs % PGSIZE == 0);
   
   file = p->file;
-  
-  lock_acquire(&filesys_lock);
-  file_seek (file, p->ofs);
-  lock_release(&filesys_lock);
   
   t = thread_current();
   
@@ -299,11 +295,13 @@ load_page (struct page* p)
     p->writable = true;
   
   /* Get a page of memory. */
+  //lock_acquire(&vm_lock);
   void* kpage = frame_get(PAL_USER, p);
+  //lock_release(&vm_lock);
   
   /* Load this page. */
   lock_acquire(&filesys_lock);
-  if (file_read (file, p->upage, p->read_bytes) != (int) p->read_bytes)
+  if (file_read_at(file, p->upage, p->read_bytes, p->ofs) != (int) p->read_bytes)
   {
     page_free(p);
     lock_release(&filesys_lock);
