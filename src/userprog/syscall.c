@@ -490,6 +490,8 @@ un_map_file (struct mmap_file* m, bool kill_thread)
   sup = thread_current()->process->sup_table;
   
   file = m->file;
+  
+  //putbuf(m->addr, file_length(file));
 
   /*  Go through pages for mapped file - if the page is null do nothing 
       If it hasn't been loaded - do nothing
@@ -513,6 +515,7 @@ un_map_file (struct mmap_file* m, bool kill_thread)
           /* If the number of bytes written isn't the same as expected, kill the thread */
           lock_acquire(&filesys_lock);
           write_size = (int)file_write_at(p->file, (const void*)(p->upage),(off_t)p->read_bytes,p->ofs);
+          //printf("write size = %d\n",write_size);
           lock_release(&filesys_lock);
           
           if ((write_size != (off_t)p->read_bytes) && kill_thread)

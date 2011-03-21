@@ -26,6 +26,7 @@ test_main (void)
   CHECK (write (handle, overwrite, strlen (overwrite))
          == (int) strlen (overwrite),
          "write \"sample.txt\"");
+  write(1,overwrite,strlen(overwrite));
 
   /* Close mapping.  Data should not be written back, because we
      didn't modify it via the mapping. */
@@ -37,6 +38,7 @@ test_main (void)
   seek (handle, 0);
   CHECK (read (handle, buffer, sizeof buffer) == sizeof buffer,
          "read \"sample.txt\"");
+  write(1,buffer, sizeof buffer);
 
   /* Verify that file overwrite worked. */
   if (memcmp (buffer, overwrite, strlen (overwrite))

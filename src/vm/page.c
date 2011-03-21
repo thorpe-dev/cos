@@ -344,7 +344,7 @@ page_create (uint8_t* upage, bool writable)
   sup_page->swap_idx = NOT_YET_SWAPPED;
   sup_page->loaded = false;
   sup_page->valid = false;
-  sup_page->read_bytes = 0;
+  sup_page->read_bytes = PGSIZE;
   sup_page->zero_bytes = 0;
   sup_page->ofs = 0;
   

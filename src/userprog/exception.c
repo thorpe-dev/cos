@@ -178,17 +178,14 @@ page_fault (struct intr_frame *f)
   
   
   
-  /* If address is in kernel space or we got a kernel page fault, kill f */
-  if (user && (!is_user_vaddr(fault_addr) || (stack_pointer < MAX_STACK_ADDRESS))) {
-    page_fault_error(f, fault_addr, not_present, write, user);
-  }
-    
-  
-  /* If the stack pointer is not safe, kill the process */
-  if (!is_user_vaddr(stack_pointer) && user) 
+  /*  If address is in kernel space 
+      or the stack pointer is in kernel space 
+      or the stack has grown too large (and we aren't the kernel), kill f */
+  if (  user && (!is_user_vaddr(fault_addr) 
+    || (!is_user_vaddr(stack_pointer)) 
+    || (stack_pointer < MAX_STACK_ADDRESS))) 
   {
-    //printf("Stack pointer wasn't safe in user context\n");
-    page_fault_error (f, fault_addr, not_present, write, user);
+    page_fault_error(f, fault_addr, not_present, write, user);
   }
   
   /* Find page in page table */
@@ -208,18 +205,16 @@ page_fault (struct intr_frame *f)
   
   if (not_present) {
     
-    if (page != NULL) {
+    if (page != NULL) 
+    {
     /* If the page hasn't been loaded - is executable/mmaped file - load_page from disk */
-      if (!page->loaded) 
-      {
+      if (!page->loaded)
         load_page(page);
-      }
         
       /* Otherwise page has been swapped out - load from swap */
       else 
-      {
         page_swap_in(page);
-      }
+      
     }
     
       
