@@ -225,11 +225,6 @@ process_exit (void)
     }
   }
   
-  /* Frees all the memory used by the hash table */
-  page_table_destroy(cur->process->sup_table);
-  
-  
-
   /* Wait for our children to die and free their memory - process_wait frees 
      the memory for the children's process structs */
   e = list_begin(&cur->children);
@@ -240,7 +235,8 @@ process_exit (void)
     process_wait(child->pid);
   }
   
-    
+  /* Frees all the memory used by the hash table */
+  page_table_destroy(cur->process->sup_table);
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -541,6 +537,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
   struct page* page;
   struct process* process = thread_current()->process;
+  off_t old_pos = file->pos;
   
   while (read_bytes > 0 || zero_bytes > 0) 
     {
@@ -563,8 +560,9 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       ofs += PGSIZE;
     }
     
-    process->heap_top = upage;
-    
+    /* Retain the file's old position offset */
+    file_seek(file, old_pos);
+
   return true;
 }
 

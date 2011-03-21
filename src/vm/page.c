@@ -297,15 +297,19 @@ load_page (struct page* p)
   /* Get a page of memory. */
   void* kpage = frame_get(PAL_USER, p);
   
-  /* Load this page. */
-  lock_acquire(&filesys_lock);
-  if (file_read (file, p->upage, p->read_bytes) != (int) p->read_bytes)
-  {
-    page_free(p);
+  if (file != NULL)
+  {  
+    /* Load this page. */
+    lock_acquire(&filesys_lock);
+    if (file_read (file, p->upage, p->read_bytes) != (int) p->read_bytes)
+    {
+      page_free(p);
+      lock_release(&filesys_lock);
+      PANIC("Load page failed - file could not be found");
+    }
     lock_release(&filesys_lock);
-    PANIC("Load page failed - file could not be found");
   }
-  lock_release(&filesys_lock);
+  
   memset (p->upage + p->read_bytes, 0, p->zero_bytes);
   
   /* Restore old "false" writable flag if necessary */
@@ -338,7 +342,7 @@ page_create (uint8_t* upage, bool writable)
   sup_page->swap_idx = NOT_YET_SWAPPED;
   sup_page->loaded = false;
   sup_page->valid = false;
-  sup_page->read_bytes = 0;
+  sup_page->read_bytes = PGSIZE;
   sup_page->zero_bytes = 0;
   sup_page->ofs = 0;
   

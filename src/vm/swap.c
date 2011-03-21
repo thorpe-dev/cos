@@ -22,7 +22,6 @@ void
 swap_init(void)
 {
   swap_area = block_get_role(BLOCK_SWAP);
-
   swap_state = bitmap_create((block_size(swap_area) * BLOCK_SECTOR_SIZE) / PGSIZE);
 }
 
@@ -110,7 +109,8 @@ void
 swap_free(struct page* sup_page)
 {
   ASSERT(!sup_page->valid);
-  bitmap_flip(swap_state, sup_page->swap_idx);
+  if(sup_page->swap_idx != NOT_YET_SWAPPED)
+    bitmap_flip(swap_state, sup_page->swap_idx);
 }
 
 /* Writes one page from DATA, starting at sector SEC */

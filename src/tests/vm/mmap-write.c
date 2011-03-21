@@ -17,23 +17,20 @@ test_main (void)
   int handle = 0;
   mapid_t map = 0;
   char buf[1024];
-  int i;
-    
+
+  
   /* Write file via mmap. */
   CHECK (create ("sample.txt", strlen (sample)), "create \"sample.txt\"");
   CHECK ((handle = open ("sample.txt")) > 1, "open \"sample.txt\"");
   CHECK ((map = mmap (handle, ACTUAL)) != MAP_FAILED, "mmap \"sample.txt\"");
   memcpy (ACTUAL, sample, strlen (sample));
-  if (memcmp(ACTUAL, sample, strlen (sample)) == 0)
-    printf("memcmp succeeded\n");
-  write(1,ACTUAL,strlen(sample));
+
   munmap (map);
   
   
 
   /* Read back via read(). */
-  i = read (handle, buf, strlen (sample));
-  //printf("i = %d\n", i);
+  read (handle, buf, strlen (sample));
   CHECK (!memcmp (buf, sample, strlen (sample)),
          "compare read data against written data");
   close (handle);
