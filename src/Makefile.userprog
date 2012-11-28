@@ -40,12 +40,12 @@ $(foreach prog,$(PROGS),$(eval $(call TEMPLATE,$(prog))))
 
 libc.a: $(LIB_OBJ)
 	rm -f $@
-	ar r $@ $^
-	ranlib $@
+	/usr/local/i386elfgcc/bin/i386-elf-ar r $@ $^
+	/usr/local/i386elfgcc/bin/i386-elf-ranlib $@
 
 clean::
 	rm -f $(PROGS) $(PROGS_OBJ) $(PROGS_DEP)
-	rm -f $(LIB_DEP) $(LIB_OBJ) lib/user/entry.[do] libc.a 
+	rm -f $(LIB_DEP) $(LIB_OBJ) lib/user/entry.[do] libc.a
 
 .PHONY: all clean
 
